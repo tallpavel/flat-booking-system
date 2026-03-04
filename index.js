@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 const connectDB = require("./config/db");
 const reservationRoutes = require("./routes/reservations");
 const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
@@ -29,6 +31,9 @@ app.get("/", (req, res) => {
 
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
+
+// ── Swagger Docs ──────────────────────────────────────────────────────
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ── Start server after DB connection ──────────────────────────────────
 connectDB().then(() => {
