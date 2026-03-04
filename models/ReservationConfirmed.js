@@ -25,6 +25,13 @@ const reservationConfirmedSchema = new mongoose.Schema(
     {
         timestamps: true,
         collection: "ReservationConfirmed",
+        toJSON: {
+            transform(doc, ret) {
+                if (ret.checkIn) ret.checkIn = ret.checkIn.toISOString().split("T")[0];
+                if (ret.checkOut) ret.checkOut = ret.checkOut.toISOString().split("T")[0];
+                return ret;
+            },
+        },
     }
 );
 
