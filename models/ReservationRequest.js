@@ -35,6 +35,11 @@ const reservationSchema = new mongoose.Schema(
             required: [true, "Total price is required"],
             min: [0, "Total price must be a positive number"],
         },
+        comment: {
+            type: String,
+            trim: true,
+            default: "",
+        },
     },
     {
         timestamps: true, // adds createdAt & updatedAt automatically

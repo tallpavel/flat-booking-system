@@ -109,7 +109,7 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", async (req, res) => {
     try {
-        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice } = req.body;
+        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment } = req.body;
 
         const reservation = await ReservationRequest.create({
             guestName,
@@ -118,6 +118,7 @@ router.post("/", async (req, res) => {
             checkOut,
             nights,
             totalPrice,
+            comment: comment || "",
         });
 
         res.status(201).json(reservation);
@@ -169,11 +170,11 @@ router.post("/", async (req, res) => {
  */
 router.put("/:id", async (req, res) => {
     try {
-        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice } = req.body;
+        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment } = req.body;
 
         const reservation = await ReservationRequest.findByIdAndUpdate(
             req.params.id,
-            { guestName, guestEmail, checkIn, checkOut, nights, totalPrice },
+            { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment: comment || "" },
             { new: true, runValidators: true }
         );
 
