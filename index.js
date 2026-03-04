@@ -5,6 +5,7 @@ const swaggerSpec = require("./config/swagger");
 const connectDB = require("./config/db");
 const reservationRoutes = require("./routes/reservations");
 const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
+const contactRoutes = require("./routes/contact");
 
 // ── Load environment variables ────────────────────────────────────────
 require("dotenv").config();
@@ -31,6 +32,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
+app.use("/api/contact", contactRoutes);
 
 // ── Swagger Docs ──────────────────────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
