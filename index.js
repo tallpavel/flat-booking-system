@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const reservationRoutes = require("./routes/reservations");
+const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
 
 // ── Load environment variables ────────────────────────────────────────
 require("dotenv").config();
@@ -11,7 +12,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ─────────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({
+    origin: [
+        "http://localhost:5173",  // Vite dev server (paraiso-booking-app)
+        "http://localhost:4173",  // Vite preview
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type"],
+}));
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────
@@ -20,6 +28,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
 
 // ── Start server after DB connection ──────────────────────────────────
 connectDB().then(() => {

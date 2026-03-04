@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const Reservation = require("../models/Reservation");
+const ReservationRequest = require("../models/ReservationRequest");
 
 // ── GET /api/reservations — List all reservations ─────────────────────
 router.get("/", async (req, res) => {
     try {
-        const reservations = await Reservation.find().sort({ checkIn: 1 });
+        const reservations = await ReservationRequest.find().sort({ checkIn: 1 });
         res.json(reservations);
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
 // ── GET /api/reservations/:id — Get a single reservation ──────────────
 router.get("/:id", async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id);
+        const reservation = await ReservationRequest.findById(req.params.id);
 
         if (!reservation) {
             return res.status(404).json({ message: "Reservation not found" });
@@ -32,7 +32,7 @@ router.post("/", async (req, res) => {
     try {
         const { guestName, guestEmail, checkIn, checkOut } = req.body;
 
-        const reservation = await Reservation.create({
+        const reservation = await ReservationRequest.create({
             guestName,
             guestEmail,
             checkIn,
@@ -55,7 +55,7 @@ router.put("/:id", async (req, res) => {
     try {
         const { guestName, guestEmail, checkIn, checkOut } = req.body;
 
-        const reservation = await Reservation.findByIdAndUpdate(
+        const reservation = await ReservationRequest.findByIdAndUpdate(
             req.params.id,
             { guestName, guestEmail, checkIn, checkOut },
             { new: true, runValidators: true }
@@ -78,7 +78,7 @@ router.put("/:id", async (req, res) => {
 // ── DELETE /api/reservations/:id — Delete a reservation ───────────────
 router.delete("/:id", async (req, res) => {
     try {
-        const reservation = await Reservation.findByIdAndDelete(req.params.id);
+        const reservation = await ReservationRequest.findByIdAndDelete(req.params.id);
 
         if (!reservation) {
             return res.status(404).json({ message: "Reservation not found" });
