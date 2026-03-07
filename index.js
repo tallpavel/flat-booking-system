@@ -1,15 +1,17 @@
+// ── Load environment variables (must be first!) ──────────────────────
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 const connectDB = require("./config/db");
 const reservationRoutes = require("./routes/reservations");
+const reservationConfirmRoutes = require("./routes/reservationConfirm");
 const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
 const contactRoutes = require("./routes/contact");
 const dailyRatesRoutes = require("./routes/dailyRates");
-
-// ── Load environment variables ────────────────────────────────────────
-require("dotenv").config();
+const stripeWebhookRoutes = require("./routes/stripeWebhook");
 
 // ── Initialise Express ────────────────────────────────────────────────
 const app = express();
@@ -20,10 +22,17 @@ app.use(cors({
     origin: [
         "http://localhost:5173",  // Vite dev server (paraiso-booking-app)
         "http://localhost:4173",  // Vite preview
+        "http://localhost:5174",
+        "http://localhost:5175",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
 }));
+
+// ── Stripe webhook needs raw body (MUST come before express.json()) ───
+app.use("/api/stripe", express.raw({ type: "application/json" }), stripeWebhookRoutes);
+
+// ── JSON parsing for all other routes ─────────────────────────────────
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────────
@@ -32,6 +41,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/reservations", reservationConfirmRoutes);
 app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/daily-rates", dailyRatesRoutes);

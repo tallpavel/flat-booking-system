@@ -107,6 +107,41 @@ const options = {
                             description: "Check-out date (YYYY-MM-DD)",
                             example: "2026-07-07",
                         },
+                        nights: {
+                            type: "number",
+                            description: "Number of nights",
+                            example: 6,
+                        },
+                        totalPrice: {
+                            type: "number",
+                            description: "Total price for the stay",
+                            example: 900,
+                        },
+                        depositAmount: {
+                            type: "number",
+                            description: "30% deposit amount to collect",
+                            example: 270,
+                        },
+                        comment: {
+                            type: "string",
+                            description: "Optional guest comment",
+                            example: "We arrive late, around 10pm",
+                        },
+                        paymentStatus: {
+                            type: "string",
+                            enum: ["pending", "paid", "failed"],
+                            description: "Status of the Stripe deposit payment",
+                            example: "pending",
+                        },
+                        stripeSessionId: {
+                            type: "string",
+                            description: "Stripe Checkout Session ID",
+                        },
+                        stripePaymentUrl: {
+                            type: "string",
+                            description: "URL to send to the guest for payment",
+                            example: "https://checkout.stripe.com/c/pay/cs_test_...",
+                        },
                         createdAt: {
                             type: "string",
                             format: "date-time",

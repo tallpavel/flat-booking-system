@@ -21,6 +21,39 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: Date,
             required: true,
         },
+        nights: {
+            type: Number,
+            required: true,
+            min: 1,
+        },
+        totalPrice: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        depositAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        comment: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        paymentStatus: {
+            type: String,
+            enum: ["pending", "paid", "failed"],
+            default: "pending",
+        },
+        stripeSessionId: {
+            type: String,
+            default: "",
+        },
+        stripePaymentUrl: {
+            type: String,
+            default: "",
+        },
     },
     {
         timestamps: true,

@@ -1,22 +1,6 @@
 const express = require("express");
-const nodemailer = require("nodemailer");
 const router = express.Router();
-
-// ── Lazy-initialised transporter (Gmail SMTP) ─────────────────────────
-// Created on first use so that dotenv has already loaded the env vars.
-let transporter = null;
-function getTransporter() {
-    if (!transporter) {
-        transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS, // Gmail App Password
-            },
-        });
-    }
-    return transporter;
-}
+const { getTransporter } = require("../config/mailer");
 
 // ── POST /api/contact — Receive a contact form message ────────────────
 router.post("/", async (req, res) => {
