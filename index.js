@@ -12,6 +12,9 @@ const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
 const contactRoutes = require("./routes/contact");
 const dailyRatesRoutes = require("./routes/dailyRates");
 const stripeWebhookRoutes = require("./routes/stripeWebhook");
+const adminAuthRoutes = require("./routes/adminAuth");
+const adminStatsRoutes = require("./routes/adminStats");
+const { requireAdmin } = require("./config/authMiddleware");
 
 // ── Initialise Express ────────────────────────────────────────────────
 const app = express();
@@ -45,6 +48,8 @@ app.use("/api/reservations", reservationConfirmRoutes);
 app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/daily-rates", dailyRatesRoutes);
+app.use("/api/admin", adminAuthRoutes);
+app.use("/api/admin", adminStatsRoutes);
 
 // ── Swagger Docs ──────────────────────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

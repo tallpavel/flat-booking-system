@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const ReservationConfirmed = require("../models/ReservationConfirmed");
+const { requireAdmin } = require("../config/authMiddleware");
 
 /**
  * @swagger
@@ -74,6 +75,24 @@ router.get("/:id", async (req, res) => {
         }
 
         res.json(reservation);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
+ * DELETE /api/reservations-confirmed/:id
+ * Cancel (delete) a confirmed reservation (admin-only).
+ */
+router.delete("/:id", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findByIdAndDelete(req.params.id);
+
+        if (!reservation) {
+            return res.status(404).json({ message: "Confirmed reservation not found" });
+        }
+
+        res.json({ message: "Confirmed reservation cancelled successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
