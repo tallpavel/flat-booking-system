@@ -87,6 +87,28 @@ router.get("/:id", async (req, res) => {
 });
 
 /**
+ * PATCH /api/reservations-confirmed/:id/checkin
+ * Toggle checked-in status (admin-only).
+ */
+router.patch("/:id/checkin", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).json({ message: "Confirmed reservation not found" });
+        }
+
+        const nowCheckedIn = !reservation.checkedIn;
+        reservation.checkedIn = nowCheckedIn;
+        reservation.checkedInAt = nowCheckedIn ? new Date() : null;
+        await reservation.save();
+
+        res.json(reservation);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
  * DELETE /api/reservations-confirmed/:id
  * Cancel (delete) a confirmed reservation (admin-only).
  */

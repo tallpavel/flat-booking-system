@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const ReservationRequest = require("../models/ReservationRequest");
+const { getTransporter } = require("../config/mailer");
+const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
 
 /**
  * @swagger
@@ -109,11 +111,12 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", async (req, res) => {
     try {
-        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment } = req.body;
 
         const reservation = await ReservationRequest.create({
             guestName,
             guestEmail,
+            guestPhone: guestPhone || "",
             checkIn,
             checkOut,
             nights,
@@ -122,6 +125,32 @@ router.post("/", async (req, res) => {
         });
 
         res.status(201).json(reservation);
+
+        // ── Send acknowledgment email (fire-and-forget) ──────────────
+        try {
+            const checkInDate = new Date(checkIn).toISOString().split("T")[0];
+            const checkOutDate = new Date(checkOut).toISOString().split("T")[0];
+
+            const { subject, html, text } = buildBookingRequestEmail({
+                guestName,
+                checkInDate,
+                checkOutDate,
+                nights,
+                totalPrice,
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: guestEmail,
+                subject,
+                html,
+                text,
+            });
+
+            console.log(`📨 Booking request acknowledgment sent to ${guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send booking request email:", emailError.message);
+        }
     } catch (error) {
         if (error.name === "ValidationError") {
             const messages = Object.values(error.errors).map((err) => err.message);
@@ -170,11 +199,11 @@ router.post("/", async (req, res) => {
  */
 router.put("/:id", async (req, res) => {
     try {
-        const { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment } = req.body;
 
         const reservation = await ReservationRequest.findByIdAndUpdate(
             req.params.id,
-            { guestName, guestEmail, checkIn, checkOut, nights, totalPrice, comment: comment || "" },
+            { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment: comment || "" },
             { new: true, runValidators: true }
         );
 
@@ -196,7 +225,7 @@ router.put("/:id", async (req, res) => {
 router.patch("/:id", async (req, res) => {
     try {
         const updates = {};
-        const allowedFields = ["guestName", "guestEmail", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
+        const allowedFields = ["guestName", "guestEmail", "guestPhone", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 updates[field] = req.body[field];

@@ -14,6 +14,7 @@ const dailyRatesRoutes = require("./routes/dailyRates");
 const stripeWebhookRoutes = require("./routes/stripeWebhook");
 const adminAuthRoutes = require("./routes/adminAuth");
 const adminStatsRoutes = require("./routes/adminStats");
+const checkInRoutes = require("./routes/checkin");
 const { requireAdmin } = require("./config/authMiddleware");
 
 // ── Initialise Express ────────────────────────────────────────────────
@@ -50,6 +51,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/daily-rates", dailyRatesRoutes);
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin", adminStatsRoutes);
+app.use("/api/checkin", checkInRoutes);
 
 // ── Swagger Docs ──────────────────────────────────────────────────────
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));

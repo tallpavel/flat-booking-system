@@ -17,6 +17,11 @@ const reservationSchema = new mongoose.Schema(
                 "Please provide a valid email address",
             ],
         },
+        guestPhone: {
+            type: String,
+            required: [true, "Guest phone number is required"],
+            trim: true,
+        },
         checkIn: {
             type: Date,
             required: [true, "Check-in date is required"],

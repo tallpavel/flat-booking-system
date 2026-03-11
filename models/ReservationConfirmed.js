@@ -13,6 +13,11 @@ const reservationConfirmedSchema = new mongoose.Schema(
             trim: true,
             lowercase: true,
         },
+        guestPhone: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         checkIn: {
             type: Date,
             required: true,
@@ -62,6 +67,23 @@ const reservationConfirmedSchema = new mongoose.Schema(
         cancelledAt: {
             type: Date,
             default: null,
+        },
+        checkedIn: {
+            type: Boolean,
+            default: false,
+        },
+        checkedInAt: {
+            type: Date,
+            default: null,
+        },
+        checkInStatus: {
+            type: String,
+            enum: ["pending", "sent", "completed"],
+            default: "pending",
+        },
+        checkInToken: {
+            type: String,
+            default: "",
         },
     },
     {

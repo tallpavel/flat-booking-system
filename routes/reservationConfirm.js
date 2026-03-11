@@ -98,6 +98,7 @@ router.post("/:id/confirm", async (req, res) => {
         const confirmed = await ReservationConfirmed.create({
             guestName: request.guestName,
             guestEmail: request.guestEmail,
+            guestPhone: request.guestPhone || "",
             checkIn: request.checkIn,
             checkOut: request.checkOut,
             nights: request.nights,
