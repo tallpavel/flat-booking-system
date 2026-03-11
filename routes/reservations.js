@@ -192,6 +192,37 @@ router.put("/:id", async (req, res) => {
     }
 });
 
+// PATCH — partial update (same logic as PUT)
+router.patch("/:id", async (req, res) => {
+    try {
+        const updates = {};
+        const allowedFields = ["guestName", "guestEmail", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        }
+
+        const reservation = await ReservationRequest.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { new: true, runValidators: true }
+        );
+
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        res.json(reservation);
+    } catch (error) {
+        if (error.name === "ValidationError") {
+            const messages = Object.values(error.errors).map((err) => err.message);
+            return res.status(400).json({ message: "Validation failed", errors: messages });
+        }
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
 /**
  * @swagger
  * /api/reservations/{id}:

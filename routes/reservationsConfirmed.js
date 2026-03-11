@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { requireAdmin } = require("../config/authMiddleware");
+const { getTransporter } = require("../config/mailer");
+const { buildUpdateEmail } = require("../emails/updateEmail");
+const { buildCancellationEmail } = require("../emails/cancellationEmail");
 
 /**
  * @swagger
@@ -34,7 +37,10 @@ const { requireAdmin } = require("../config/authMiddleware");
  */
 router.get("/", async (req, res) => {
     try {
-        const reservations = await ReservationConfirmed.find().sort({ checkIn: 1 });
+        // Only return active reservations (backward-compatible: old records without status are active)
+        const reservations = await ReservationConfirmed.find({
+            $or: [{ status: "active" }, { status: { $exists: false } }],
+        }).sort({ checkIn: 1 });
         res.json(reservations);
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -86,13 +92,207 @@ router.get("/:id", async (req, res) => {
  */
 router.delete("/:id", requireAdmin, async (req, res) => {
     try {
-        const reservation = await ReservationConfirmed.findByIdAndDelete(req.params.id);
+        // Soft-delete: set status to cancelled instead of removing
+        const reservation = await ReservationConfirmed.findByIdAndUpdate(
+            req.params.id,
+            { status: "cancelled", cancelledAt: new Date() },
+            { new: true }
+        );
 
         if (!reservation) {
             return res.status(404).json({ message: "Confirmed reservation not found" });
         }
 
-        res.json({ message: "Confirmed reservation cancelled successfully" });
+        // Send cancellation email (fire-and-forget)
+        try {
+            const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+            const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+            const { subject, html, text } = buildCancellationEmail({
+                guestName: reservation.guestName,
+                checkInDate,
+                checkOutDate,
+                nights: reservation.nights,
+                totalPrice: reservation.totalPrice,
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject,
+                html,
+                text,
+            });
+
+            console.log(`📧 Cancellation email sent to ${reservation.guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send cancellation email:", emailError.message);
+        }
+
+        res.json({ message: "Confirmed reservation cancelled successfully", emailSent: true });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+/**
+ * PATCH /api/reservations-confirmed/:id
+ * Update a confirmed reservation (admin-only).
+ * Validates that new dates don't overlap with other confirmed reservations.
+ */
+router.patch("/:id", requireAdmin, async (req, res) => {
+    try {
+        const updates = {};
+        const allowedFields = ["guestName", "guestEmail", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        }
+
+        // Fetch current reservation for comparison (needed for email + date validation)
+        const current = await ReservationConfirmed.findById(req.params.id);
+        if (!current) {
+            return res.status(404).json({ message: "Confirmed reservation not found" });
+        }
+
+        // If dates are changing, validate no overlap with other confirmed reservations
+        if (updates.checkIn || updates.checkOut) {
+            const newCheckIn = new Date(updates.checkIn || current.checkIn);
+            const newCheckOut = new Date(updates.checkOut || current.checkOut);
+
+            // Validate checkOut > checkIn
+            if (newCheckOut <= newCheckIn) {
+                return res.status(400).json({
+                    message: "Validation failed",
+                    errors: ["Check-out date must be after the check-in date"],
+                });
+            }
+
+            // Find any overlapping confirmed reservations (excluding this one)
+            const overlapping = await ReservationConfirmed.find({
+                _id: { $ne: req.params.id },
+                checkIn: { $lt: newCheckOut },
+                checkOut: { $gt: newCheckIn },
+            });
+
+            if (overlapping.length > 0) {
+                const conflictDetails = overlapping.map(
+                    (r) => `${r.guestName} (${r.checkIn.toISOString().split("T")[0]} – ${r.checkOut.toISOString().split("T")[0]})`
+                );
+                return res.status(409).json({
+                    message: "Date conflict with existing confirmed reservations",
+                    errors: conflictDetails,
+                });
+            }
+        }
+
+        // Recalculate deposit if totalPrice changes
+        if (updates.totalPrice) {
+            updates.depositAmount = Math.round(updates.totalPrice * 0.3);
+        }
+
+        // Build changes list for the email (before applying updates)
+        const changes = [];
+        const fieldLabels = {
+            guestName: "Guest Name", guestEmail: "Email",
+            checkIn: "Check-in", checkOut: "Check-out",
+            nights: "Nights", totalPrice: "Total Price", comment: "Comment",
+        };
+        for (const field of allowedFields) {
+            if (updates[field] === undefined) continue;
+            let oldVal = current[field];
+            let newVal = updates[field];
+            // Format dates for display
+            if (field === "checkIn" || field === "checkOut") {
+                oldVal = oldVal instanceof Date ? oldVal.toISOString().split("T")[0] : String(oldVal);
+                newVal = new Date(newVal).toISOString().split("T")[0];
+            } else if (field === "totalPrice") {
+                oldVal = `€${oldVal}`;
+                newVal = `€${newVal}`;
+            } else {
+                oldVal = String(oldVal || "(empty)");
+                newVal = String(newVal || "(empty)");
+            }
+            if (oldVal !== newVal) {
+                changes.push({ field: fieldLabels[field] || field, from: oldVal, to: newVal });
+            }
+        }
+
+        const reservation = await ReservationConfirmed.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { new: true, runValidators: true }
+        );
+
+        if (!reservation) {
+            return res.status(404).json({ message: "Confirmed reservation not found" });
+        }
+
+        // Send update notification email (fire-and-forget)
+        let emailSent = false;
+        if (changes.length > 0) {
+            try {
+                const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+                const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+                const { subject, html, text } = buildUpdateEmail({
+                    guestName: reservation.guestName,
+                    changes,
+                    checkInDate,
+                    checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                });
+
+                await getTransporter().sendMail({
+                    from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                    to: reservation.guestEmail,
+                    subject,
+                    html,
+                    text,
+                });
+
+                emailSent = true;
+                console.log(`📧 Update email sent to ${reservation.guestEmail}`);
+            } catch (emailError) {
+                console.error("⚠️ Failed to send update email:", emailError.message);
+            }
+        }
+
+        res.json({ ...reservation.toJSON(), emailSent });
+    } catch (error) {
+        if (error.name === "ValidationError") {
+            const messages = Object.values(error.errors).map((err) => err.message);
+            return res.status(400).json({ message: "Validation failed", errors: messages });
+        }
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
+ * GET /api/reservations-confirmed/archived
+ * Returns cancelled and completed reservations.
+ * Also auto-marks past active reservations as completed.
+ */
+router.get("/archived/list", requireAdmin, async (req, res) => {
+    try {
+        const now = new Date();
+
+        // Auto-complete: mark active reservations whose checkout is in the past
+        await ReservationConfirmed.updateMany(
+            {
+                $or: [{ status: "active" }, { status: { $exists: false } }],
+                checkOut: { $lt: now },
+            },
+            { status: "completed" }
+        );
+
+        // Fetch all non-active reservations
+        const archived = await ReservationConfirmed.find({
+            status: { $in: ["cancelled", "completed"] },
+        }).sort({ updatedAt: -1 });
+
+        res.json(archived);
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

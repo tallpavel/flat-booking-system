@@ -54,6 +54,15 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+        status: {
+            type: String,
+            enum: ["active", "cancelled", "completed"],
+            default: "active",
+        },
+        cancelledAt: {
+            type: Date,
+            default: null,
+        },
     },
     {
         timestamps: true,
