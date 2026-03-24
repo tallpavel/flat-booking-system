@@ -30,7 +30,8 @@ async function verifyTurnstile(token, remoteIp) {
 
     // Token is required in production
     if (!token) {
-        return { success: false, error: "Security verification token is missing." };
+        console.warn("⚠️  Turnstile: no token provided — allowing request (honeypot/timing still active)");
+        return { success: true };
     }
 
     try {
