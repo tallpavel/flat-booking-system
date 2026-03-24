@@ -37,6 +37,8 @@ async function verifyTurnstile(token, remoteIp) {
         const body = { secret: secretKey, response: token };
         if (remoteIp) body.remoteip = remoteIp;
 
+        console.log(`🔑 Turnstile: verifying token (${token.substring(0, 20)}...) from IP ${remoteIp || "unknown"}`);
+
         const res = await fetch(TURNSTILE_VERIFY_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -46,10 +48,15 @@ async function verifyTurnstile(token, remoteIp) {
         const data = await res.json();
 
         if (!data.success) {
-            console.warn("🚫 Turnstile verification failed:", data["error-codes"]);
+            console.warn("🚫 Turnstile verification failed:", JSON.stringify({
+                errorCodes: data["error-codes"],
+                hostname: data.hostname,
+                action: data.action,
+            }));
             return { success: false, error: "Security verification failed. Please try again." };
         }
 
+        console.log("✅ Turnstile: token verified successfully");
         return { success: true };
     } catch (err) {
         console.error("❌ Turnstile verification error:", err.message);
