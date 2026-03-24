@@ -3,6 +3,7 @@ const router = express.Router();
 const ReservationRequest = require("../models/ReservationRequest");
 const { getTransporter } = require("../config/mailer");
 const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
+const { verifyTurnstile } = require("../config/turnstile");
 
 /**
  * @swagger
@@ -111,7 +112,13 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment, turnstileToken } = req.body;
+
+        // ── Turnstile bot protection ──────────────────────────────────
+        const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
+        if (!turnstileResult.success) {
+            return res.status(403).json({ message: turnstileResult.error });
+        }
 
         const reservation = await ReservationRequest.create({
             guestName,

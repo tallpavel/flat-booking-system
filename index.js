@@ -30,6 +30,8 @@ app.use(cors({
         "http://localhost:4173",  // Vite preview
         "http://localhost:5174",
         "http://localhost:5175",
+        "http://13.50.243.218",   // AWS EC2 public IP
+        "http://ec2-13-50-243-218.eu-north-1.compute.amazonaws.com", // AWS EC2 public DNS
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],

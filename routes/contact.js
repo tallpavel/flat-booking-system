@@ -1,11 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const { getTransporter } = require("../config/mailer");
+const { verifyTurnstile } = require("../config/turnstile");
 
 // ── POST /api/contact — Receive a contact form message ────────────────
 router.post("/", async (req, res) => {
     try {
-        const { name, email, phone, message } = req.body;
+        const { name, email, phone, message, turnstileToken } = req.body;
+
+        // ── Turnstile bot protection ──────────────────────────────────
+        const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
+        if (!turnstileResult.success) {
+            return res.status(403).json({ message: turnstileResult.error });
+        }
 
         // Basic validation
         if (!name || !name.trim()) {

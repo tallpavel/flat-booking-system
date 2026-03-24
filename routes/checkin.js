@@ -6,6 +6,7 @@ const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { requireAdmin } = require("../config/authMiddleware");
 const { getTransporter } = require("../config/mailer");
 const { buildCheckInRequestEmail } = require("../emails/checkInRequestEmail");
+const { verifyTurnstile } = require("../config/turnstile");
 
 /**
  * POST /api/checkin/send/:reservationId
@@ -138,20 +139,10 @@ router.post("/:token", async (req, res) => {
     try {
         const { guests, turnstileToken } = req.body;
 
-        // ── Turnstile verification ────────────────────────────────────
-        if (turnstileToken) {
-            const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    secret: process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA",
-                    response: turnstileToken,
-                }),
-            });
-            const verifyData = await verifyRes.json();
-            if (!verifyData.success) {
-                return res.status(403).json({ message: "Security verification failed. Please try again." });
-            }
+        // ── Turnstile bot protection ──────────────────────────────────
+        const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
+        if (!turnstileResult.success) {
+            return res.status(403).json({ message: turnstileResult.error });
         }
 
         // ── Validate guests array ─────────────────────────────────────
