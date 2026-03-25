@@ -90,8 +90,8 @@ router.post("/:id/confirm", async (req, res) => {
                 checkIn: request.checkIn.toISOString().split("T")[0],
                 checkOut: request.checkOut.toISOString().split("T")[0],
             },
-            success_url: `${frontendUrl}?payment=success`,
-            cancel_url: `${frontendUrl}?payment=cancelled`,
+            success_url: `${frontendUrl}/payment?payment=success`,
+            cancel_url: `${frontendUrl}/payment?payment=cancelled`,
         });
 
         // 4. Create the confirmed reservation
