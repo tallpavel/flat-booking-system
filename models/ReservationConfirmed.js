@@ -98,6 +98,10 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+        accessInfoSent: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,

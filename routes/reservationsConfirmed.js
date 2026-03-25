@@ -422,4 +422,53 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
     }
 });
 
+const { buildAccessInfoEmail } = require("../emails/accessInfoEmail");
+
+/* ─── Send Access Information Email ─────────────────────────────── */
+router.post("/:id/send-access-info", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        if (reservation.checkInStatus !== "completed") {
+            return res.status(400).json({ message: "Check-in must be completed before sending access info" });
+        }
+
+        const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+        const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+        const { subject, html, text } = buildAccessInfoEmail({
+            guestName: reservation.guestName,
+            checkInDate,
+            checkOutDate,
+            nights: reservation.nights,
+        });
+
+        const transporter = getTransporter();
+        try {
+            await transporter.sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject,
+                html,
+                text,
+            });
+            console.log(`✅ Access info email sent to ${reservation.guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send access info email:", emailError.message);
+            return res.status(500).json({ message: "Failed to send email", error: emailError.message });
+        }
+
+        reservation.accessInfoSent = true;
+        await reservation.save();
+
+        res.json({ message: "Access information email sent successfully" });
+    } catch (error) {
+        console.error("Error sending access info:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
 module.exports = router;
