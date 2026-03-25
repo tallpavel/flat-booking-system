@@ -3,6 +3,7 @@ const router = express.Router();
 const ReservationRequest = require("../models/ReservationRequest");
 const { getTransporter } = require("../config/mailer");
 const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
+const { buildOwnerNewRequestEmail } = require("../emails/ownerNewRequestEmail");
 const { verifyTurnstile } = require("../config/turnstile");
 
 /**
@@ -133,11 +134,11 @@ router.post("/", async (req, res) => {
 
         res.status(201).json(reservation);
 
-        // ── Send acknowledgment email (fire-and-forget) ──────────────
-        try {
-            const checkInDate = new Date(checkIn).toISOString().split("T")[0];
-            const checkOutDate = new Date(checkOut).toISOString().split("T")[0];
+        // ── Send acknowledgment email to guest (fire-and-forget) ─────
+        const checkInDate = new Date(checkIn).toISOString().split("T")[0];
+        const checkOutDate = new Date(checkOut).toISOString().split("T")[0];
 
+        try {
             const { subject, html, text } = buildBookingRequestEmail({
                 guestName,
                 checkInDate,
@@ -157,6 +158,33 @@ router.post("/", async (req, res) => {
             console.log(`📨 Booking request acknowledgment sent to ${guestEmail}`);
         } catch (emailError) {
             console.error("⚠️ Failed to send booking request email:", emailError.message);
+        }
+
+        // ── Send notification email to owner (fire-and-forget) ───────
+        try {
+            const ownerEmail = process.env.CONTACT_EMAIL || process.env.EMAIL_USER;
+            const { subject, html, text } = buildOwnerNewRequestEmail({
+                guestName,
+                guestEmail,
+                guestPhone: guestPhone || "",
+                checkInDate,
+                checkOutDate,
+                nights,
+                totalPrice,
+                comment: comment || "",
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: ownerEmail,
+                subject,
+                html,
+                text,
+            });
+
+            console.log(`🔔 Owner notification sent to ${ownerEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send owner notification email:", emailError.message);
         }
     } catch (error) {
         if (error.name === "ValidationError") {
