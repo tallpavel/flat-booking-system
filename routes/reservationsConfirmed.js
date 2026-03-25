@@ -375,8 +375,8 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
                 checkIn: checkInDate,
                 checkOut: checkOutDate,
             },
-            success_url: `${frontendUrl}/payment?payment=success`,
-            cancel_url: `${frontendUrl}/payment?payment=cancelled`,
+            success_url: `${frontendUrl}/payment?payment=success&type=remaining`,
+            cancel_url: `${frontendUrl}/payment?payment=cancelled&type=remaining`,
         });
 
         // Update reservation with remaining payment session info
