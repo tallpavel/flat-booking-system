@@ -47,52 +47,69 @@ router.post("/webhook", async (req, res) => {
     switch (event.type) {
         case "checkout.session.completed": {
             const session = event.data.object;
-            console.log(`✅ Payment succeeded for session: ${session.id}`);
+            const paymentType = session.metadata?.paymentType;
+            console.log(`✅ Payment succeeded for session: ${session.id} (type: ${paymentType || 'deposit'})`);
 
             try {
-                const updated = await ReservationConfirmed.findOneAndUpdate(
-                    { stripeSessionId: session.id },
-                    { paymentStatus: "paid" },
-                    { new: true }
-                );
+                if (paymentType === "remaining_balance") {
+                    // ── Remaining balance payment ─────────────────────────────
+                    const updated = await ReservationConfirmed.findOneAndUpdate(
+                        { remainingStripeSessionId: session.id },
+                        { remainingPaymentStatus: "paid" },
+                        { new: true }
+                    );
 
-                if (updated) {
-                    console.log(`💰 Reservation ${updated._id} marked as paid (${updated.guestName})`);
-
-                    // Send deposit-paid confirmation email (fire-and-forget)
-                    try {
-                        const checkInDate = updated.checkIn instanceof Date
-                            ? updated.checkIn.toISOString().split("T")[0]
-                            : String(updated.checkIn).slice(0, 10);
-                        const checkOutDate = updated.checkOut instanceof Date
-                            ? updated.checkOut.toISOString().split("T")[0]
-                            : String(updated.checkOut).slice(0, 10);
-                        const remainingBalance = updated.totalPrice - updated.depositAmount;
-
-                        const { subject, html, text } = buildDepositPaidEmail({
-                            guestName: updated.guestName,
-                            checkInDate,
-                            checkOutDate,
-                            nights: updated.nights,
-                            totalPrice: updated.totalPrice,
-                            depositAmount: updated.depositAmount,
-                            remainingBalance,
-                        });
-
-                        await getTransporter().sendMail({
-                            from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
-                            to: updated.guestEmail,
-                            subject,
-                            html,
-                            text,
-                        });
-
-                        console.log(`📧 Deposit-paid confirmation email sent to ${updated.guestEmail}`);
-                    } catch (emailErr) {
-                        console.error("⚠️ Failed to send deposit-paid email:", emailErr.message);
+                    if (updated) {
+                        console.log(`💰 Remaining balance paid for ${updated.guestName} (${updated._id})`);
+                    } else {
+                        console.warn(`⚠️  No reservation found for remaining session ${session.id}`);
                     }
                 } else {
-                    console.warn(`⚠️  No reservation found for session ${session.id}`);
+                    // ── Deposit payment ───────────────────────────────────────
+                    const updated = await ReservationConfirmed.findOneAndUpdate(
+                        { stripeSessionId: session.id },
+                        { paymentStatus: "paid" },
+                        { new: true }
+                    );
+
+                    if (updated) {
+                        console.log(`💰 Reservation ${updated._id} marked as paid (${updated.guestName})`);
+
+                        // Send deposit-paid confirmation email (fire-and-forget)
+                        try {
+                            const checkInDate = updated.checkIn instanceof Date
+                                ? updated.checkIn.toISOString().split("T")[0]
+                                : String(updated.checkIn).slice(0, 10);
+                            const checkOutDate = updated.checkOut instanceof Date
+                                ? updated.checkOut.toISOString().split("T")[0]
+                                : String(updated.checkOut).slice(0, 10);
+                            const remainingBalance = updated.totalPrice - updated.depositAmount;
+
+                            const { subject, html, text } = buildDepositPaidEmail({
+                                guestName: updated.guestName,
+                                checkInDate,
+                                checkOutDate,
+                                nights: updated.nights,
+                                totalPrice: updated.totalPrice,
+                                depositAmount: updated.depositAmount,
+                                remainingBalance,
+                            });
+
+                            await getTransporter().sendMail({
+                                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                                to: updated.guestEmail,
+                                subject,
+                                html,
+                                text,
+                            });
+
+                            console.log(`📧 Deposit-paid confirmation email sent to ${updated.guestEmail}`);
+                        } catch (emailErr) {
+                            console.error("⚠️ Failed to send deposit-paid email:", emailErr.message);
+                        }
+                    } else {
+                        console.warn(`⚠️  No reservation found for session ${session.id}`);
+                    }
                 }
             } catch (dbErr) {
                 console.error("DB update error:", dbErr);
@@ -102,13 +119,21 @@ router.post("/webhook", async (req, res) => {
 
         case "checkout.session.expired": {
             const session = event.data.object;
-            console.log(`⏰ Payment session expired: ${session.id}`);
+            const paymentType = session.metadata?.paymentType;
+            console.log(`⏰ Payment session expired: ${session.id} (type: ${paymentType || 'deposit'})`);
 
             try {
-                await ReservationConfirmed.findOneAndUpdate(
-                    { stripeSessionId: session.id },
-                    { paymentStatus: "failed" }
-                );
+                if (paymentType === "remaining_balance") {
+                    await ReservationConfirmed.findOneAndUpdate(
+                        { remainingStripeSessionId: session.id },
+                        { remainingPaymentStatus: "failed" }
+                    );
+                } else {
+                    await ReservationConfirmed.findOneAndUpdate(
+                        { stripeSessionId: session.id },
+                        { paymentStatus: "failed" }
+                    );
+                }
             } catch (dbErr) {
                 console.error("DB update error:", dbErr);
             }

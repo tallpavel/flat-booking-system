@@ -1,10 +1,12 @@
 const express = require("express");
 const router = express.Router();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { requireAdmin } = require("../config/authMiddleware");
 const { getTransporter } = require("../config/mailer");
 const { buildUpdateEmail } = require("../emails/updateEmail");
 const { buildCancellationEmail } = require("../emails/cancellationEmail");
+const { buildRemainingBalanceEmail } = require("../emails/remainingBalanceEmail");
 
 /**
  * @swagger
@@ -316,6 +318,106 @@ router.get("/archived/list", requireAdmin, async (req, res) => {
 
         res.json(archived);
     } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
+ * POST /:id/send-remaining-payment
+ * Creates a Stripe Checkout session for the remaining balance and sends payment email to guest.
+ */
+router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        if (reservation.paymentStatus !== "paid") {
+            return res.status(400).json({ message: "Deposit must be paid first" });
+        }
+
+        if (reservation.remainingPaymentStatus === "paid") {
+            return res.status(400).json({ message: "Remaining balance already paid" });
+        }
+
+        const remainingBalance = reservation.totalPrice - reservation.depositAmount;
+        if (remainingBalance <= 0) {
+            return res.status(400).json({ message: "No remaining balance" });
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+        const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+        // Create Stripe Checkout session for remaining balance
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            mode: "payment",
+            customer_email: reservation.guestEmail,
+            line_items: [
+                {
+                    price_data: {
+                        currency: "eur",
+                        product_data: {
+                            name: `Paraíso — Remaining Balance for ${reservation.nights}-night stay`,
+                            description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} · Deposit paid: €${reservation.depositAmount}`,
+                        },
+                        unit_amount: remainingBalance * 100,
+                    },
+                    quantity: 1,
+                },
+            ],
+            metadata: {
+                reservationId: reservation._id.toString(),
+                guestName: reservation.guestName,
+                paymentType: "remaining_balance",
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+            },
+            success_url: `${frontendUrl}/payment?payment=success`,
+            cancel_url: `${frontendUrl}/payment?payment=cancelled`,
+        });
+
+        // Update reservation with remaining payment session info
+        reservation.remainingStripeSessionId = session.id;
+        reservation.remainingPaymentUrl = session.url;
+        reservation.remainingPaymentStatus = "pending";
+        await reservation.save();
+
+        // Send remaining balance email to guest
+        try {
+            const { subject, html, text } = buildRemainingBalanceEmail({
+                guestName: reservation.guestName,
+                checkInDate,
+                checkOutDate,
+                nights: reservation.nights,
+                totalPrice: reservation.totalPrice,
+                depositAmount: reservation.depositAmount,
+                remainingBalance,
+                paymentUrl: session.url,
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject,
+                html,
+                text,
+            });
+
+            console.log(`💳 Remaining balance email sent to ${reservation.guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send remaining balance email:", emailError.message);
+        }
+
+        res.json({
+            message: "Remaining balance payment link created and email sent",
+            paymentUrl: session.url,
+            remainingBalance,
+        });
+    } catch (error) {
+        console.error("Error creating remaining payment:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });

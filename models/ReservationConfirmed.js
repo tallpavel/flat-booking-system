@@ -85,6 +85,19 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+        remainingPaymentStatus: {
+            type: String,
+            enum: ["not_requested", "pending", "paid", "failed"],
+            default: "not_requested",
+        },
+        remainingStripeSessionId: {
+            type: String,
+            default: "",
+        },
+        remainingPaymentUrl: {
+            type: String,
+            default: "",
+        },
     },
     {
         timestamps: true,
