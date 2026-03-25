@@ -6,7 +6,6 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 const connectDB = require("./config/db");
-const basicAuth = require("./config/basicAuth");
 const reservationRoutes = require("./routes/reservations");
 const reservationConfirmRoutes = require("./routes/reservationConfirm");
 const reservationsConfirmedRoutes = require("./routes/reservationsConfirmed");
@@ -37,9 +36,6 @@ app.use(cors({
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
 }));
-
-// ── HTTP Basic Auth (gate all traffic behind user/pass) ───────────────
-app.use(basicAuth);
 
 // ── Stripe webhook needs raw body (MUST come before express.json()) ───
 app.use("/api/stripe", express.raw({ type: "application/json" }), stripeWebhookRoutes);
