@@ -14,6 +14,8 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         label:       'style="padding: 5px 0; color: #64748b; font-size: 13px; width: 140px;"',
         value:       'style="padding: 5px 0; color: #1e293b; font-size: 15px; font-weight: 600;"',
         note:        'style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 4px 0;"',
+        important:   'style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 16px 20px; margin: 16px 0 4px 0;"',
+        importantP:  'style="color: #92400e; font-size: 13px; line-height: 1.6; margin: 0;"',
         divider:     'style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;"',
     };
 
@@ -47,6 +49,11 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         </p>
         ${detailsTable({ title: "Your Stay", checkIn: "Check-in", checkOut: "Check-out", nights: "Nights" })}
         ${ctaButton("Complete Online Check-In")}
+        <div ${s.important}>
+            <p ${s.importantP}>
+                🔑 <strong>Important:</strong> Access details — including door codes, WiFi credentials, and arrival instructions — will only be provided once all guests have been registered through this form. Please complete it at your earliest convenience to ensure a smooth arrival.
+            </p>
+        </div>
         <p ${s.note}>📌 You can update the information anytime by reopening the same link.</p>
     `;
 
@@ -60,6 +67,11 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         </p>
         ${detailsTable({ title: "Váš pobyt", checkIn: "Příjezd", checkOut: "Odjezd", nights: "Počet nocí" })}
         ${ctaButton("Vyplnit online check-in")}
+        <div ${s.important}>
+            <p ${s.importantP}>
+                🔑 <strong>Důležité:</strong> Přístupové údaje — včetně kódů ke dveřím, přihlašovacích údajů k WiFi a pokynů k příjezdu — budou poskytnuty až po registraci všech hostů prostřednictvím tohoto formuláře. Prosím vyplňte jej co nejdříve, aby váš příjezd proběhl hladce.
+            </p>
+        </div>
         <p ${s.note}>📌 Údaje můžete kdykoli upravit otevřením stejného odkazu.</p>
     `;
 
@@ -73,6 +85,11 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         </p>
         ${detailsTable({ title: "Tu estancia", checkIn: "Entrada", checkOut: "Salida", nights: "Noches" })}
         ${ctaButton("Completar check-in online")}
+        <div ${s.important}>
+            <p ${s.importantP}>
+                🔑 <strong>Importante:</strong> Los datos de acceso — incluyendo códigos de entrada, credenciales WiFi e instrucciones de llegada — solo se proporcionarán una vez que todos los huéspedes hayan sido registrados a través de este formulario. Por favor, complétalo lo antes posible para garantizar una llegada sin contratiempos.
+            </p>
+        </div>
         <p ${s.note}>📌 Puedes actualizar la información en cualquier momento reabriendo el mismo enlace.</p>
     `;
 
@@ -106,18 +123,21 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         `Hi ${guestName},`,
         `Please complete your online check-in before arrival.`,
         `Check-in: ${checkInDate} · Check-out: ${checkOutDate} · Nights: ${nights}`,
+        `Important: Access details (door codes, WiFi, arrival instructions) will only be provided once the check-in form is completed.`,
         `Complete check-in: ${checkInUrl}`,
         ``,
         `— ČESKY —`,
         `Ahoj ${guestName},`,
         `Prosím vyplňte online check-in před příjezdem.`,
         `Příjezd: ${checkInDate} · Odjezd: ${checkOutDate} · Nocí: ${nights}`,
+        `Důležité: Přístupové údaje (kódy ke dveřím, WiFi, pokyny k příjezdu) budou poskytnuty až po vyplnění formuláře.`,
         `Vyplnit check-in: ${checkInUrl}`,
         ``,
         `— ESPAÑOL —`,
         `Hola ${guestName},`,
         `Por favor completa el check-in online antes de llegar.`,
         `Entrada: ${checkInDate} · Salida: ${checkOutDate} · Noches: ${nights}`,
+        `Importante: Los datos de acceso (códigos de entrada, WiFi, instrucciones de llegada) solo se proporcionarán una vez completado el formulario.`,
         `Completar check-in: ${checkInUrl}`,
         ``,
         `— Paraíso, Verónica's Flat`,
