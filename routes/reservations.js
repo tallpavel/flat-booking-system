@@ -4,6 +4,7 @@ const ReservationRequest = require("../models/ReservationRequest");
 const { getTransporter } = require("../config/mailer");
 const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
 const { buildOwnerNewRequestEmail } = require("../emails/ownerNewRequestEmail");
+const { emailAttachments } = require("../emails/emailLayout");
 const { verifyTurnstile } = require("../config/turnstile");
 
 /**
@@ -155,6 +156,7 @@ router.post("/", async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
 
             console.log(`📨 Booking request acknowledgment sent to ${guestEmail}`);
@@ -182,6 +184,7 @@ router.post("/", async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
 
             console.log(`🔔 Owner notification sent to ${ownerEmail}`);

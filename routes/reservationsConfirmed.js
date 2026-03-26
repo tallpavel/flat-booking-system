@@ -7,6 +7,7 @@ const { getTransporter } = require("../config/mailer");
 const { buildUpdateEmail } = require("../emails/updateEmail");
 const { buildCancellationEmail } = require("../emails/cancellationEmail");
 const { buildRemainingBalanceEmail } = require("../emails/remainingBalanceEmail");
+const { emailAttachments } = require("../emails/emailLayout");
 
 /**
  * @swagger
@@ -147,6 +148,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
 
             console.log(`📧 Cancellation email sent to ${reservation.guestEmail}`);
@@ -276,6 +278,7 @@ router.patch("/:id", requireAdmin, async (req, res) => {
                     subject,
                     html,
                     text,
+                    attachments: emailAttachments,
                 });
 
                 emailSent = true;
@@ -407,6 +410,7 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
 
             console.log(`💳 Remaining balance email sent to ${reservation.guestEmail}`);
@@ -458,6 +462,7 @@ router.post("/:id/send-access-info", requireAdmin, async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
             console.log(`✅ Access info email sent to ${reservation.guestEmail}`);
         } catch (emailError) {

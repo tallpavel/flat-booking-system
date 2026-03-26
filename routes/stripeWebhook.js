@@ -4,6 +4,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { getTransporter } = require("../config/mailer");
 const { buildDepositPaidEmail } = require("../emails/depositPaidEmail");
+const { emailAttachments } = require("../emails/emailLayout");
 
 /**
  * @swagger
@@ -102,6 +103,7 @@ router.post("/webhook", async (req, res) => {
                                 subject,
                                 html,
                                 text,
+                                attachments: emailAttachments,
                             });
 
                             console.log(`📧 Deposit-paid confirmation email sent to ${updated.guestEmail}`);

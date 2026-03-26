@@ -5,6 +5,7 @@ const ReservationRequest = require("../models/ReservationRequest");
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { getTransporter } = require("../config/mailer");
 const { buildConfirmationEmail } = require("../emails/confirmationEmail");
+const { emailAttachments } = require("../emails/emailLayout");
 
 const DEPOSIT_PERCENTAGE = 0.3; // 30% deposit
 
@@ -139,6 +140,7 @@ router.post("/:id/confirm", async (req, res) => {
                 subject,
                 html,
                 text,
+                attachments: emailAttachments,
             });
 
             emailSent = true;

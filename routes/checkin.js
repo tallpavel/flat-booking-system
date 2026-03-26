@@ -6,6 +6,7 @@ const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { requireAdmin } = require("../config/authMiddleware");
 const { getTransporter } = require("../config/mailer");
 const { buildCheckInRequestEmail } = require("../emails/checkInRequestEmail");
+const { emailAttachments } = require("../emails/emailLayout");
 const { verifyTurnstile } = require("../config/turnstile");
 
 /**
@@ -64,6 +65,7 @@ router.post("/send/:reservationId", requireAdmin, async (req, res) => {
             subject,
             html,
             text,
+            attachments: emailAttachments,
         });
 
         console.log(`📋 Check-in email sent to ${reservation.guestEmail}`);

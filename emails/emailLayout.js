@@ -5,11 +5,25 @@
  * for all guest-facing and admin emails.
  *
  * Usage:
- *   const { wrapEmail } = require('./emailLayout');
- *   const html = wrapEmail({ title: 'Booking Confirmed', content: bodyHtml, locale: 'en' });
+ *   const { wrapEmail, emailAttachments } = require('./emailLayout');
+ *   const html = wrapEmail({ content: bodyHtml, locale: 'en' });
+ *   // Pass emailAttachments to sendMail({ ..., attachments: emailAttachments })
  */
 
-const LOGO_URL = (process.env.FRONTEND_URL || 'https://paraiso.veronicas-flat.com') + '/logo.png';
+const path = require('path');
+
+/* Logo embedded via CID so it works in all email clients */
+const LOGO_CID = 'logo@veronicas-flat';
+const LOGO_PATH = path.join(__dirname, '..', 'public', 'logo.png');
+
+/** Nodemailer attachments array — include in every sendMail call */
+const emailAttachments = [
+    {
+        filename: 'logo.png',
+        path: LOGO_PATH,
+        cid: LOGO_CID,
+    },
+];
 
 /* ── Design tokens ────────────────────────────────────────────────── */
 const tokens = {
@@ -71,7 +85,7 @@ function wrapEmail({ content, locale = 'en' }) {
                     <tr>
                         <td style="background-color: ${tokens.cream}; padding: 36px 32px 28px 32px; text-align: center;">
                             <!-- Logo -->
-                            <img src="${LOGO_URL}" alt="Verónica's Flat" width="80" height="80" style="display: block; margin: 0 auto 16px auto; width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+                            <img src="cid:${LOGO_CID}" alt="Verónica's Flat" width="80" height="80" style="display: block; margin: 0 auto 16px auto; width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
                             <!-- Tagline -->
                             <p style="margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: ${tokens.warmGray}; letter-spacing: 1.5px; text-transform: uppercase;">
                                 Playa Paraíso · Tenerife
@@ -165,5 +179,5 @@ module.exports = {
     note,
     greeting,
     tokens,
-    LOGO_URL,
+    emailAttachments,
 };
