@@ -5,9 +5,11 @@ const ReservationRequest = require("../models/ReservationRequest");
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { getTransporter } = require("../config/mailer");
 const { buildConfirmationEmail } = require("../emails/confirmationEmail");
+const { buildFullPaymentEmail } = require("../emails/fullPaymentEmail");
 const { emailAttachments } = require("../emails/emailLayout");
 
 const DEPOSIT_PERCENTAGE = 0.3; // 30% deposit
+const SHORT_NOTICE_DAYS = 14;   // Full payment threshold
 
 /**
  * @swagger
@@ -62,13 +64,24 @@ router.post("/:id/confirm", async (req, res) => {
             return res.status(404).json({ message: "Reservation request not found" });
         }
 
-        // 2. Calculate deposit
-        const depositAmount = Math.round(request.totalPrice * DEPOSIT_PERCENTAGE);
+        // 2. Detect short-notice booking (<14 days to check-in)
+        const checkInDate = new Date(request.checkIn);
+        const now = new Date();
+        const daysUntilCheckIn = Math.ceil((checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const isShortNotice = daysUntilCheckIn < SHORT_NOTICE_DAYS;
 
-        // 3. Create Stripe Checkout Session
+        // 3. Calculate amounts based on booking type
+        const depositAmount = isShortNotice
+            ? request.totalPrice  // Full amount for short-notice
+            : Math.round(request.totalPrice * DEPOSIT_PERCENTAGE);
+        const chargeAmount = isShortNotice ? request.totalPrice : depositAmount;
+
+        // 4. Create Stripe Checkout Session
         const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const checkInStr = request.checkIn.toISOString().split("T")[0];
+        const checkOutStr = request.checkOut.toISOString().split("T")[0];
 
-        const session = await stripe.checkout.sessions.create({
+        const sessionConfig = {
             payment_method_types: ["card"],
             mode: "payment",
             customer_email: request.guestEmail,
@@ -76,11 +89,16 @@ router.post("/:id/confirm", async (req, res) => {
                 {
                     price_data: {
                         currency: "eur",
-                        product_data: {
-                            name: `Paraíso — Deposit for ${request.nights}-night stay`,
-                            description: `${request.checkIn.toISOString().split("T")[0]} → ${request.checkOut.toISOString().split("T")[0]} · Total: €${request.totalPrice} · Deposit: 30%`,
-                        },
-                        unit_amount: depositAmount * 100, // Stripe uses cents
+                        product_data: isShortNotice
+                            ? {
+                                name: `Paraíso — Full Payment for ${request.nights}-night stay`,
+                                description: `${checkInStr} → ${checkOutStr} · Total: €${request.totalPrice} (Last-minute booking — full payment required)`,
+                            }
+                            : {
+                                name: `Paraíso — Deposit for ${request.nights}-night stay`,
+                                description: `${checkInStr} → ${checkOutStr} · Total: €${request.totalPrice} · Deposit: 30%`,
+                            },
+                        unit_amount: chargeAmount * 100, // Stripe uses cents
                     },
                     quantity: 1,
                 },
@@ -88,15 +106,22 @@ router.post("/:id/confirm", async (req, res) => {
             metadata: {
                 reservationId: request._id.toString(),
                 guestName: request.guestName,
-                checkIn: request.checkIn.toISOString().split("T")[0],
-                checkOut: request.checkOut.toISOString().split("T")[0],
+                paymentType: isShortNotice ? "full_payment" : "deposit",
+                checkIn: checkInStr,
+                checkOut: checkOutStr,
             },
-            success_url: `${frontendUrl}/payment?payment=success`,
-            cancel_url: `${frontendUrl}/payment?payment=cancelled`,
-        });
+            success_url: isShortNotice
+                ? `${frontendUrl}/payment?payment=success&type=full`
+                : `${frontendUrl}/payment?payment=success`,
+            cancel_url: isShortNotice
+                ? `${frontendUrl}/payment?payment=cancelled&type=full`
+                : `${frontendUrl}/payment?payment=cancelled`,
+        };
 
-        // 4. Create the confirmed reservation
-        const confirmed = await ReservationConfirmed.create({
+        const session = await stripe.checkout.sessions.create(sessionConfig);
+
+        // 5. Create the confirmed reservation
+        const confirmedData = {
             guestName: request.guestName,
             guestEmail: request.guestEmail,
             guestPhone: request.guestPhone || "",
@@ -104,47 +129,71 @@ router.post("/:id/confirm", async (req, res) => {
             checkOut: request.checkOut,
             nights: request.nights,
             totalPrice: request.totalPrice,
-            depositAmount,
+            depositAmount: isShortNotice ? request.totalPrice : depositAmount,
             comment: request.comment || "",
             paymentStatus: "pending",
-            stripeSessionId: session.id,
-            stripePaymentUrl: session.url,
+            stripeSessionId: isShortNotice ? "" : session.id,
+            stripePaymentUrl: isShortNotice ? "" : session.url,
             locale: request.locale || "en",
-        });
+        };
 
-        // 5. Remove the original request
+        // For short-notice, store session in remaining fields (webhook uses these for full_payment)
+        if (isShortNotice) {
+            confirmedData.remainingStripeSessionId = session.id;
+            confirmedData.remainingPaymentUrl = session.url;
+            confirmedData.remainingPaymentStatus = "pending";
+        }
+
+        const confirmed = await ReservationConfirmed.create(confirmedData);
+
+        // 6. Remove the original request
         await ReservationRequest.findByIdAndDelete(req.params.id);
 
-        // 6. Send multilingual payment email to the guest
-        const checkInDate = request.checkIn.toISOString().split("T")[0];
-        const checkOutDate = request.checkOut.toISOString().split("T")[0];
-        const remainingBalance = request.totalPrice - depositAmount;
+        // 7. Send appropriate email
         let emailSent = false;
 
         try {
-            const { subject, html, text } = buildConfirmationEmail({
-                guestName: request.guestName,
-                checkInDate,
-                checkOutDate,
-                nights: request.nights,
-                totalPrice: request.totalPrice,
-                depositAmount,
-                remainingBalance,
-                paymentUrl: session.url,
-                locale: request.locale || "en",
-            });
+            let emailData;
+
+            if (isShortNotice) {
+                // Full payment email for short-notice bookings
+                emailData = buildFullPaymentEmail({
+                    guestName: request.guestName,
+                    checkInDate: checkInStr,
+                    checkOutDate: checkOutStr,
+                    nights: request.nights,
+                    totalPrice: request.totalPrice,
+                    paymentUrl: session.url,
+                    locale: request.locale || "en",
+                });
+                console.log(`📧 Full payment email sent to ${request.guestEmail} (short-notice)`);
+            } else {
+                // Standard deposit email
+                const remainingBalance = request.totalPrice - depositAmount;
+                emailData = buildConfirmationEmail({
+                    guestName: request.guestName,
+                    checkInDate: checkInStr,
+                    checkOutDate: checkOutStr,
+                    nights: request.nights,
+                    totalPrice: request.totalPrice,
+                    depositAmount,
+                    remainingBalance,
+                    paymentUrl: session.url,
+                    locale: request.locale || "en",
+                });
+                console.log(`📧 Deposit payment email sent to ${request.guestEmail}`);
+            }
 
             await getTransporter().sendMail({
                 from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
                 to: request.guestEmail,
-                subject,
-                html,
-                text,
+                subject: emailData.subject,
+                html: emailData.html,
+                text: emailData.text,
                 attachments: emailAttachments,
             });
 
             emailSent = true;
-            console.log(`📧 Payment email sent to ${request.guestEmail}`);
         } catch (emailError) {
             console.error("⚠️ Failed to send payment email:", emailError.message);
             // Don't fail the whole request if the email fails
@@ -157,6 +206,7 @@ router.post("/:id/confirm", async (req, res) => {
             confirmed,
             paymentUrl: session.url,
             emailSent,
+            isShortNotice,
         });
     } catch (error) {
         console.error("Confirm error:", error);
