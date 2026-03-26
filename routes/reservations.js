@@ -113,7 +113,7 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment, turnstileToken } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment, locale, turnstileToken } = req.body;
 
         // ── Turnstile bot protection ──────────────────────────────────
         const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
@@ -130,6 +130,7 @@ router.post("/", async (req, res) => {
             nights,
             totalPrice,
             comment: comment || "",
+            locale: locale || "en",
         });
 
         res.status(201).json(reservation);
@@ -145,6 +146,7 @@ router.post("/", async (req, res) => {
                 checkOutDate,
                 nights,
                 totalPrice,
+                locale: locale || "en",
             });
 
             await getTransporter().sendMail({

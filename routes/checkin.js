@@ -55,6 +55,7 @@ router.post("/send/:reservationId", requireAdmin, async (req, res) => {
             checkOutDate,
             nights: reservation.nights,
             checkInUrl,
+            locale: reservation.locale || "en",
         });
 
         await getTransporter().sendMail({

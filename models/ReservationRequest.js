@@ -6,6 +6,14 @@ const reservationSchema = new mongoose.Schema(
             type: String,
             required: [true, "Guest name is required"],
             trim: true,
+            minlength: [2, "Guest name must be at least 2 characters"],
+            validate: {
+                validator: function (v) {
+                    // Allow Unicode letters, spaces, hyphens, apostrophes, dots
+                    return /^[\p{L}\s'\-\.]+$/u.test(v) && !/\d/.test(v);
+                },
+                message: "Guest name may only contain letters, spaces, hyphens, and apostrophes",
+            },
         },
         guestEmail: {
             type: String,
@@ -44,6 +52,11 @@ const reservationSchema = new mongoose.Schema(
             type: String,
             trim: true,
             default: "",
+        },
+        locale: {
+            type: String,
+            enum: ["en", "es", "cs"],
+            default: "en",
         },
     },
     {

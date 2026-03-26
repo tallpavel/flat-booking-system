@@ -138,6 +138,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
                 checkOutDate,
                 nights: reservation.nights,
                 totalPrice: reservation.totalPrice,
+                locale: reservation.locale || "en",
             });
 
             await getTransporter().sendMail({
@@ -266,6 +267,7 @@ router.patch("/:id", requireAdmin, async (req, res) => {
                     checkOutDate,
                     nights: reservation.nights,
                     totalPrice: reservation.totalPrice,
+                    locale: reservation.locale || "en",
                 });
 
                 await getTransporter().sendMail({
@@ -396,6 +398,7 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
                 depositAmount: reservation.depositAmount,
                 remainingBalance,
                 paymentUrl: session.url,
+                locale: reservation.locale || "en",
             });
 
             await getTransporter().sendMail({
@@ -444,6 +447,7 @@ router.post("/:id/send-access-info", requireAdmin, async (req, res) => {
             checkInDate,
             checkOutDate,
             nights: reservation.nights,
+            locale: reservation.locale || "en",
         });
 
         const transporter = getTransporter();

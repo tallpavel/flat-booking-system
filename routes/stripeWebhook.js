@@ -93,6 +93,7 @@ router.post("/webhook", async (req, res) => {
                                 totalPrice: updated.totalPrice,
                                 depositAmount: updated.depositAmount,
                                 remainingBalance,
+                                locale: updated.locale || "en",
                             });
 
                             await getTransporter().sendMail({

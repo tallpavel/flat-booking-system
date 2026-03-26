@@ -108,6 +108,7 @@ router.post("/:id/confirm", async (req, res) => {
             paymentStatus: "pending",
             stripeSessionId: session.id,
             stripePaymentUrl: session.url,
+            locale: request.locale || "en",
         });
 
         // 5. Remove the original request
@@ -129,6 +130,7 @@ router.post("/:id/confirm", async (req, res) => {
                 depositAmount,
                 remainingBalance,
                 paymentUrl: session.url,
+                locale: request.locale || "en",
             });
 
             await getTransporter().sendMail({
