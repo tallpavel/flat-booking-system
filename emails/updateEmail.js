@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, formatDate, tokens } = require('./emailLayout');
 
 function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, nights, totalPrice, locale = 'en' }) {
 
@@ -54,6 +54,9 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
         ? `<h3 style="margin: 24px 0 0 0; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 700; color: ${tokens.warmGray}; text-transform: uppercase; letter-spacing: 1px;">${l.changesTitle}</h3>${changesHtml}`
         : '';
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     const content = [
         sectionHeading(l.heading),
         greeting(l.greeting),
@@ -62,8 +65,8 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
         detailsCard({
             accentColor: tokens.gold,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
             ],
@@ -76,7 +79,7 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
     const text = [
         l.greeting.replace(/<[^>]*>/g, ''),
         changesText,
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights} · €${totalPrice}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights} · €${totalPrice}`,
         ``,
         `— Verónica's Flat, Playa Paraíso`,
     ].join("\n");

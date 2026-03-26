@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildConfirmationEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, depositAmount, remainingBalance, paymentUrl, locale = 'en' }) {
 
@@ -37,14 +37,17 @@ function buildConfirmationEmail({ guestName, checkInDate, checkOutDate, nights, 
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     const content = [
         sectionHeading(l.heading),
         greeting(l.greeting),
         detailsCard({
             accentColor: tokens.coral,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
                 [l.deposit, `€${depositAmount}`, `color: ${tokens.coral}; font-size: 17px; font-weight: 700;`],
@@ -58,7 +61,7 @@ function buildConfirmationEmail({ guestName, checkInDate, checkOutDate, nights, 
 
     const text = [
         `${l.greeting.replace(/<[^>]*>/g, '')}`,
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         `${l.totalPrice}: €${totalPrice} · ${l.deposit}: €${depositAmount}`,
         `Pay here: ${paymentUrl}`,
         ``,

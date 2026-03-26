@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, locale = 'en' }) {
 
@@ -91,6 +91,9 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     // House rules callout
     const rulesHtml = l.rules.map(r => `• ${r}`).join('<br>');
     const rulesBox = `<div style="background: ${tokens.sand}; border: 1px solid ${tokens.gold}; border-radius: 12px; padding: 16px 20px; margin: 16px 0;">
@@ -131,8 +134,8 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
         detailsCard({
             accentColor: tokens.navy,
             rows: [
-                [l.checkIn, `📅 ${checkInDate} · ${l.checkInTime}`],
-                [l.checkOut, `📅 ${checkOutDate} · ${l.checkOutTime}`],
+                [l.checkIn, `📅 ${fmtIn} · ${l.checkInTime}`],
+                [l.checkOut, `📅 ${fmtOut} · ${l.checkOutTime}`],
                 [l.nightsLabel, `🌙 ${nights}`],
             ],
         }),
@@ -155,7 +158,7 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
         `Floor: 2nd floor, door B`,
         `WiFi: Veronicas_Flat / ParaisoWifi2026`,
         ``,
-        `${l.checkIn}: ${checkInDate} ${l.checkInTime} · ${l.checkOut}: ${checkOutDate} ${l.checkOutTime} · ${l.nightsLabel}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} ${l.checkInTime} · ${l.checkOut}: ${fmtOut} ${l.checkOutTime} · ${l.nightsLabel}: ${nights}`,
         `Address: Playa Paraíso, Adeje, Tenerife`,
         `Emergency: +34 600 000 000`,
         ``,

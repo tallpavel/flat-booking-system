@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildRemainingBalanceEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, depositAmount, remainingBalance, paymentUrl, locale = 'en' }) {
 
@@ -40,14 +40,17 @@ function buildRemainingBalanceEmail({ guestName, checkInDate, checkOutDate, nigh
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     const content = [
         sectionHeading(l.heading),
         greeting(l.greeting),
         detailsCard({
             accentColor: tokens.coral,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
                 [l.depositPaid, `✓ €${depositAmount}`, `color: ${tokens.success}; font-weight: 600;`],
@@ -62,7 +65,7 @@ function buildRemainingBalanceEmail({ guestName, checkInDate, checkOutDate, nigh
 
     const text = [
         l.greeting.replace(/<[^>]*>/g, ''),
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         `${l.totalPrice}: €${totalPrice} · ${l.depositPaid}: €${depositAmount} · ${l.remaining}: €${remainingBalance}`,
         `Pay here: ${paymentUrl}`,
         l.noteText,

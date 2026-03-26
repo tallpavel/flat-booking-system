@@ -3,7 +3,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, locale = 'en' }) {
 
@@ -33,14 +33,17 @@ function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, 
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     const content = [
         sectionHeading(l.heading),
         greeting(l.greeting),
         detailsCard({
             accentColor: tokens.danger,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`, `text-decoration: line-through; color: ${tokens.danger};`],
-                [l.checkOut, `📅 ${checkOutDate}`, `text-decoration: line-through; color: ${tokens.danger};`],
+                [l.checkIn, `📅 ${fmtIn}`, `text-decoration: line-through; color: ${tokens.danger};`],
+                [l.checkOut, `📅 ${fmtOut}`, `text-decoration: line-through; color: ${tokens.danger};`],
                 [l.nights, `🌙 ${nights}`, `text-decoration: line-through; color: ${tokens.danger};`],
                 [l.totalPrice, `€${totalPrice}`, `text-decoration: line-through; color: ${tokens.danger};`],
             ],
@@ -52,7 +55,7 @@ function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, 
 
     const text = [
         l.greeting.replace(/<[^>]*>/g, ''),
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         `${l.totalPrice}: €${totalPrice}`,
         l.helpText,
         ``,

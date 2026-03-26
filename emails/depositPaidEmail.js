@@ -5,7 +5,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, badge, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, badge, formatDate, tokens } = require('./emailLayout');
 
 function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, depositAmount, remainingBalance, locale = 'en' }) {
 
@@ -40,6 +40,8 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
     };
 
     const l = t[locale] || t.en;
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
     const paidBadgeHtml = badge({ text: l.paidBadge, bgColor: '#dcfce7', textColor: tokens.success });
 
     const content = [
@@ -48,8 +50,8 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
         detailsCard({
             accentColor: tokens.success,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
                 [l.deposit, `€${depositAmount} ✓`, `color: ${tokens.success}; font-size: 17px; font-weight: 700;`],
@@ -63,7 +65,7 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
     const text = [
         `Hi ${guestName},`,
         `${l.paidBadge}`,
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         `${l.totalPrice}: €${totalPrice} · ${l.deposit}: €${depositAmount}`,
         ``,
         `— Verónica's Flat, Playa Paraíso`,

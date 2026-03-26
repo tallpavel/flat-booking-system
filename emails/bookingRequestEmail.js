@@ -6,7 +6,7 @@
  * @param {string} params.locale  - 'en' | 'cs' | 'es' (default: 'en')
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildBookingRequestEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, locale = 'en' }) {
 
@@ -45,14 +45,17 @@ function buildBookingRequestEmail({ guestName, checkInDate, checkOutDate, nights
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     const content = [
         sectionHeading(l.heading),
         greeting(l.greeting),
         detailsCard({
             accentColor: tokens.gold,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
             ],
@@ -65,7 +68,7 @@ function buildBookingRequestEmail({ guestName, checkInDate, checkOutDate, nights
     const text = [
         l.textGreeting,
         l.textBody,
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         `${l.totalPrice}: €${totalPrice}`,
         l.textNote,
         ``,

@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights, checkInUrl, locale = 'en' }) {
 
@@ -40,6 +40,9 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
 
     const l = t[locale] || t.en;
 
+    const fmtIn = formatDate(checkInDate, locale);
+    const fmtOut = formatDate(checkOutDate, locale);
+
     // Important callout box
     const importantBox = `<div style="background: ${tokens.sand}; border: 1px solid ${tokens.gold}; border-radius: 12px; padding: 16px 20px; margin: 16px 0 4px 0;">
         <p style="color: ${tokens.navy}; font-size: 13px; line-height: 1.6; margin: 0;">${l.important}</p>
@@ -51,8 +54,8 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
         detailsCard({
             accentColor: tokens.gold,
             rows: [
-                [l.checkIn, `📅 ${checkInDate}`],
-                [l.checkOut, `📅 ${checkOutDate}`],
+                [l.checkIn, `📅 ${fmtIn}`],
+                [l.checkOut, `📅 ${fmtOut}`],
                 [l.nights, `🌙 ${nights}`],
             ],
         }),
@@ -65,7 +68,7 @@ function buildCheckInRequestEmail({ guestName, checkInDate, checkOutDate, nights
 
     const text = [
         l.greeting.replace(/<[^>]*>/g, ''),
-        `${l.checkIn}: ${checkInDate} · ${l.checkOut}: ${checkOutDate} · ${l.nights}: ${nights}`,
+        `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
         l.important.replace(/<[^>]*>/g, ''),
         `Complete check-in: ${checkInUrl}`,
         ``,

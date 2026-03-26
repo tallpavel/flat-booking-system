@@ -170,6 +170,28 @@ function greeting(text) {
     return `<p style="color: ${tokens.bodyText}; font-size: 15px; line-height: 1.65; margin: 0 0 24px 0;">${text}</p>`;
 }
 
+/* ── Locale-aware date helpers ────────────────────────────────────── */
+
+const localeMap = { en: 'en-GB', cs: 'cs-CZ', es: 'es-ES' };
+
+/**
+ * Formats an ISO date string (e.g. "2026-04-15") into a beautiful
+ * locale-aware format:
+ *   EN → "15 April 2026"
+ *   CS → "15. dubna 2026"
+ *   ES → "15 de abril de 2026"
+ */
+function formatDate(isoDateStr, locale = 'en') {
+    const intlLocale = localeMap[locale] || localeMap.en;
+    const date = new Date(isoDateStr + 'T12:00:00Z'); // noon UTC avoids TZ edge cases
+    return new Intl.DateTimeFormat(intlLocale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(date);
+}
+
 module.exports = {
     wrapEmail,
     sectionHeading,
@@ -178,6 +200,7 @@ module.exports = {
     badge,
     note,
     greeting,
+    formatDate,
     tokens,
     emailAttachments,
 };

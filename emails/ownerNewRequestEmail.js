@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
 
 function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInDate, checkOutDate, nights, totalPrice, comment }) {
 
@@ -19,9 +19,12 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         phoneRow,
     ].filter(Boolean);
 
+    const fmtIn = formatDate(checkInDate, 'en');
+    const fmtOut = formatDate(checkOutDate, 'en');
+
     const bookingRows = [
-        ['Check-in', `📅 ${checkInDate}`],
-        ['Check-out', `📅 ${checkOutDate}`],
+        ['Check-in', `📅 ${fmtIn}`],
+        ['Check-out', `📅 ${fmtOut}`],
         ['Nights', `🌙 ${nights}`],
         ['Total Price', `💰 €${totalPrice}`],
         ['Deposit (30%)', `€${Math.round(totalPrice * 0.3)}`],
@@ -50,8 +53,8 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         `Email: ${guestEmail}`,
         guestPhone ? `Phone: ${guestPhone}` : null,
         ``,
-        `Check-in: ${checkInDate}`,
-        `Check-out: ${checkOutDate}`,
+        `Check-in: ${fmtIn}`,
+        `Check-out: ${fmtOut}`,
         `Nights: ${nights}`,
         `Total: €${totalPrice}`,
         `Deposit (30%): €${Math.round(totalPrice * 0.3)}`,
@@ -60,7 +63,7 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         `→ Review this request in the Admin Dashboard.`,
     ].filter(Boolean).join("\n");
 
-    const subject = `🔔 New Booking Request — ${guestName} · ${checkInDate} → ${checkOutDate}`;
+    const subject = `🔔 New Booking Request — ${guestName} · ${fmtIn} → ${fmtOut}`;
 
     return { subject, html, text };
 }
