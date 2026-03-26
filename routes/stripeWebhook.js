@@ -65,6 +65,19 @@ router.post("/webhook", async (req, res) => {
                     } else {
                         console.warn(`⚠️  No reservation found for remaining session ${session.id}`);
                     }
+                } else if (paymentType === "full_payment") {
+                    // ── Full payment (last-minute booking) ────────────────────
+                    const updated = await ReservationConfirmed.findOneAndUpdate(
+                        { remainingStripeSessionId: session.id },
+                        { paymentStatus: "paid", remainingPaymentStatus: "paid" },
+                        { new: true }
+                    );
+
+                    if (updated) {
+                        console.log(`💰 Full payment received for ${updated.guestName} (${updated._id})`);
+                    } else {
+                        console.warn(`⚠️  No reservation found for full payment session ${session.id}`);
+                    }
                 } else {
                     // ── Deposit payment ───────────────────────────────────────
                     const updated = await ReservationConfirmed.findOneAndUpdate(
@@ -126,7 +139,7 @@ router.post("/webhook", async (req, res) => {
             console.log(`⏰ Payment session expired: ${session.id} (type: ${paymentType || 'deposit'})`);
 
             try {
-                if (paymentType === "remaining_balance") {
+                if (paymentType === "remaining_balance" || paymentType === "full_payment") {
                     await ReservationConfirmed.findOneAndUpdate(
                         { remainingStripeSessionId: session.id },
                         { remainingPaymentStatus: "failed" }

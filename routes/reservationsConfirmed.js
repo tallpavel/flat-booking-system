@@ -7,6 +7,7 @@ const { getTransporter } = require("../config/mailer");
 const { buildUpdateEmail } = require("../emails/updateEmail");
 const { buildCancellationEmail } = require("../emails/cancellationEmail");
 const { buildRemainingBalanceEmail } = require("../emails/remainingBalanceEmail");
+const { buildFullPaymentEmail } = require("../emails/fullPaymentEmail");
 const { emailAttachments } = require("../emails/emailLayout");
 
 /**
@@ -425,6 +426,99 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
         });
     } catch (error) {
         console.error("Error creating remaining payment:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
+ * POST /:id/send-full-payment
+ * For last-minute bookings (<14 days). Creates a Stripe Checkout session for the
+ * full amount and sends a full payment email to the guest.
+ */
+router.post("/:id/send-full-payment", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        // Block if already fully paid
+        if (reservation.paymentStatus === "paid" && reservation.remainingPaymentStatus === "paid") {
+            return res.status(400).json({ message: "Reservation is already fully paid" });
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+        const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+        // Create Stripe Checkout session for the FULL amount
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            mode: "payment",
+            customer_email: reservation.guestEmail,
+            line_items: [
+                {
+                    price_data: {
+                        currency: "eur",
+                        product_data: {
+                            name: `Paraíso — Full Payment for ${reservation.nights}-night stay`,
+                            description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} (Last-minute booking — full payment required)`,
+                        },
+                        unit_amount: reservation.totalPrice * 100,
+                    },
+                    quantity: 1,
+                },
+            ],
+            metadata: {
+                reservationId: reservation._id.toString(),
+                guestName: reservation.guestName,
+                paymentType: "full_payment",
+                checkIn: checkInDate,
+                checkOut: checkOutDate,
+            },
+            success_url: `${frontendUrl}/payment?payment=success&type=full`,
+            cancel_url: `${frontendUrl}/payment?payment=cancelled&type=full`,
+        });
+
+        // Store session info in the remaining payment fields
+        reservation.remainingStripeSessionId = session.id;
+        reservation.remainingPaymentUrl = session.url;
+        reservation.remainingPaymentStatus = "pending";
+        await reservation.save();
+
+        // Send full payment email
+        try {
+            const { subject, html, text } = buildFullPaymentEmail({
+                guestName: reservation.guestName,
+                checkInDate,
+                checkOutDate,
+                nights: reservation.nights,
+                totalPrice: reservation.totalPrice,
+                paymentUrl: session.url,
+                locale: reservation.locale || "en",
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject,
+                html,
+                text,
+                attachments: emailAttachments,
+            });
+
+            console.log(`💳 Full payment email sent to ${reservation.guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send full payment email:", emailError.message);
+        }
+
+        res.json({
+            message: "Full payment link created and email sent",
+            paymentUrl: session.url,
+            totalAmount: reservation.totalPrice,
+        });
+    } catch (error) {
+        console.error("Error creating full payment:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
