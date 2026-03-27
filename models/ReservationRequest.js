@@ -7,6 +7,7 @@ const reservationSchema = new mongoose.Schema(
             required: [true, "Guest name is required"],
             trim: true,
             minlength: [2, "Guest name must be at least 2 characters"],
+            maxlength: [100, "Guest name must be at most 100 characters"],
             validate: {
                 validator: function (v) {
                     // Allow Unicode letters, spaces, hyphens, apostrophes, dots
@@ -20,6 +21,7 @@ const reservationSchema = new mongoose.Schema(
             required: [true, "Guest email is required"],
             trim: true,
             lowercase: true,
+            maxlength: [254, "Email address is too long"],
             match: [
                 /^\S+@\S+\.\S+$/,
                 "Please provide a valid email address",
@@ -29,6 +31,15 @@ const reservationSchema = new mongoose.Schema(
             type: String,
             required: [true, "Guest phone number is required"],
             trim: true,
+            validate: {
+                validator: function (v) {
+                    // Must look like a real phone number:
+                    // optional leading +, then digits/spaces/hyphens/parens/dots
+                    // minimum 6, maximum 20 characters total
+                    return /^\+?[\d\s\-().]{6,20}$/.test(v);
+                },
+                message: "Please provide a valid phone number (digits, spaces, hyphens, optional leading +)",
+            },
         },
         checkIn: {
             type: Date,
@@ -46,12 +57,13 @@ const reservationSchema = new mongoose.Schema(
         totalPrice: {
             type: Number,
             required: [true, "Total price is required"],
-            min: [0, "Total price must be a positive number"],
+            min: [1, "Total price must be a positive number"],
         },
         comment: {
             type: String,
             trim: true,
             default: "",
+            maxlength: [500, "Comment must be at most 500 characters"],
         },
         locale: {
             type: String,

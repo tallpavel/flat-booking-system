@@ -7,6 +7,7 @@ const { getTransporter } = require("../config/mailer");
 const { buildConfirmationEmail } = require("../emails/confirmationEmail");
 const { buildFullPaymentEmail } = require("../emails/fullPaymentEmail");
 const { emailAttachments } = require("../emails/emailLayout");
+const { requireAdmin } = require("../config/authMiddleware");
 
 const DEPOSIT_PERCENTAGE = 0.3; // 30% deposit
 const SHORT_NOTICE_DAYS = 14;   // Full payment threshold
@@ -56,7 +57,7 @@ const SHORT_NOTICE_DAYS = 14;   // Full payment threshold
  *       500:
  *         description: Server error
  */
-router.post("/:id/confirm", async (req, res) => {
+router.post("/:id/confirm", requireAdmin, async (req, res) => {
     try {
         // 1. Find the original request
         const request = await ReservationRequest.findById(req.params.id);

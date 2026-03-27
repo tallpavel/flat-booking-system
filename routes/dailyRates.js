@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const DailyRate = require("../models/DailyRate");
+const { requireAdmin } = require("../config/authMiddleware");
 
 /**
  * @swagger
@@ -34,7 +35,7 @@ const DailyRate = require("../models/DailyRate");
  *       500:
  *         description: Server error
  */
-router.post("/", async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
     try {
         const { date, price, note } = req.body;
 
@@ -139,7 +140,7 @@ router.get("/", async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAdmin, async (req, res) => {
     try {
         const rate = await DailyRate.findByIdAndDelete(req.params.id);
 

@@ -1,11 +1,31 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const router = express.Router();
 const ReservationRequest = require("../models/ReservationRequest");
+const BlockedDate = require("../models/BlockedDate");
+const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { getTransporter } = require("../config/mailer");
 const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
 const { buildOwnerNewRequestEmail } = require("../emails/ownerNewRequestEmail");
 const { emailAttachments } = require("../emails/emailLayout");
 const { verifyTurnstile } = require("../config/turnstile");
+const { calculatePrice } = require("../config/priceCalculator");
+const { requireAdmin } = require("../config/authMiddleware");
+
+// ── Rate limiter for reservation creation (5 per IP per 15 min) ──────
+const reservationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many reservation requests. Please try again later." },
+    keyGenerator: (req) => {
+        // Use X-Forwarded-For if behind a proxy (nginx), else req.ip
+        return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    },
+});
+
+const MIN_NIGHTS = 3;
 
 /**
  * @swagger
@@ -18,8 +38,10 @@ const { verifyTurnstile } = require("../config/turnstile");
  * @swagger
  * /api/reservations:
  *   get:
- *     summary: List all reservation requests
+ *     summary: List all reservation requests (admin only)
  *     tags: [Reservation Requests]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: A list of reservation requests sorted by check-in date
@@ -29,6 +51,8 @@ const { verifyTurnstile } = require("../config/turnstile");
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/ReservationRequest'
+ *       401:
+ *         description: Authentication required
  *       500:
  *         description: Server error
  *         content:
@@ -36,7 +60,7 @@ const { verifyTurnstile } = require("../config/turnstile");
  *             schema:
  *               $ref: '#/components/schemas/ServerError'
  */
-router.get("/", async (req, res) => {
+router.get("/", requireAdmin, async (req, res) => {
     try {
         const reservations = await ReservationRequest.find().sort({ checkIn: 1 });
         res.json(reservations);
@@ -49,8 +73,10 @@ router.get("/", async (req, res) => {
  * @swagger
  * /api/reservations/{id}:
  *   get:
- *     summary: Get a single reservation request
+ *     summary: Get a single reservation request (admin only)
  *     tags: [Reservation Requests]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -65,12 +91,14 @@ router.get("/", async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ReservationRequest'
+ *       401:
+ *         description: Authentication required
  *       404:
  *         description: Reservation not found
  *       500:
  *         description: Server error
  */
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAdmin, async (req, res) => {
     try {
         const reservation = await ReservationRequest.findById(req.params.id);
 
@@ -109,12 +137,16 @@ router.get("/:id", async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
+ *       403:
+ *         description: Turnstile verification failed
+ *       429:
+ *         description: Rate limit exceeded
  *       500:
  *         description: Server error
  */
-router.post("/", async (req, res) => {
+router.post("/", reservationLimiter, async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment, locale, turnstileToken } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, comment, locale, turnstileToken } = req.body;
 
         // ── Turnstile bot protection ──────────────────────────────────
         const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
@@ -122,14 +154,61 @@ router.post("/", async (req, res) => {
             return res.status(403).json({ message: turnstileResult.error });
         }
 
+        // ── Date validation ───────────────────────────────────────────
+        const checkInDate = new Date(checkIn);
+        const checkOutDate = new Date(checkOut);
+
+        if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+            return res.status(400).json({ message: "Invalid check-in or check-out date" });
+        }
+
+        if (checkOutDate <= checkInDate) {
+            return res.status(400).json({ message: "Check-out must be after check-in" });
+        }
+
+        // Check-in must not be in the past
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const ciNormalized = new Date(checkInDate);
+        ciNormalized.setUTCHours(0, 0, 0, 0);
+
+        if (ciNormalized < today) {
+            return res.status(400).json({ message: "Check-in date cannot be in the past" });
+        }
+
+        // ── Server-side price & nights calculation (IGNORE client values) ──
+        const { nights, totalPrice } = await calculatePrice(checkInDate, checkOutDate);
+
+        if (nights < MIN_NIGHTS) {
+            return res.status(400).json({ message: `Minimum stay is ${MIN_NIGHTS} nights` });
+        }
+
+        // ── Check for blocked/booked date conflicts ───────────────────
+        const blockedConflict = await BlockedDate.findOne({
+            date: { $gte: checkInDate, $lt: checkOutDate },
+        });
+        if (blockedConflict) {
+            return res.status(400).json({ message: "Selected dates include unavailable days. Please choose different dates." });
+        }
+
+        const bookedConflict = await ReservationConfirmed.findOne({
+            status: "active",
+            checkIn: { $lt: checkOutDate },
+            checkOut: { $gt: checkInDate },
+        });
+        if (bookedConflict) {
+            return res.status(400).json({ message: "Selected dates overlap with an existing booking. Please choose different dates." });
+        }
+
+        // ── Create reservation with SERVER-computed values ────────────
         const reservation = await ReservationRequest.create({
             guestName,
             guestEmail,
             guestPhone: guestPhone || "",
-            checkIn,
-            checkOut,
-            nights,
-            totalPrice,
+            checkIn: checkInDate,
+            checkOut: checkOutDate,
+            nights,        // SERVER-computed
+            totalPrice,    // SERVER-computed
             comment: comment || "",
             locale: locale || "en",
         });
@@ -137,14 +216,14 @@ router.post("/", async (req, res) => {
         res.status(201).json(reservation);
 
         // ── Send acknowledgment email to guest (fire-and-forget) ─────
-        const checkInDate = new Date(checkIn).toISOString().split("T")[0];
-        const checkOutDate = new Date(checkOut).toISOString().split("T")[0];
+        const checkInStr = checkInDate.toISOString().split("T")[0];
+        const checkOutStr = checkOutDate.toISOString().split("T")[0];
 
         try {
             const { subject, html, text } = buildBookingRequestEmail({
                 guestName,
-                checkInDate,
-                checkOutDate,
+                checkInDate: checkInStr,
+                checkOutDate: checkOutStr,
                 nights,
                 totalPrice,
                 locale: locale || "en",
@@ -171,8 +250,8 @@ router.post("/", async (req, res) => {
                 guestName,
                 guestEmail,
                 guestPhone: guestPhone || "",
-                checkInDate,
-                checkOutDate,
+                checkInDate: checkInStr,
+                checkOutDate: checkOutStr,
                 nights,
                 totalPrice,
                 comment: comment || "",
@@ -204,8 +283,10 @@ router.post("/", async (req, res) => {
  * @swagger
  * /api/reservations/{id}:
  *   put:
- *     summary: Update a reservation request
+ *     summary: Update a reservation request (admin only)
  *     tags: [Reservation Requests]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -232,12 +313,14 @@ router.post("/", async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
+ *       401:
+ *         description: Authentication required
  *       404:
  *         description: Reservation not found
  *       500:
  *         description: Server error
  */
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAdmin, async (req, res) => {
     try {
         const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment } = req.body;
 
@@ -261,8 +344,8 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-// PATCH — partial update (same logic as PUT)
-router.patch("/:id", async (req, res) => {
+// PATCH — partial update (admin only)
+router.patch("/:id", requireAdmin, async (req, res) => {
     try {
         const updates = {};
         const allowedFields = ["guestName", "guestEmail", "guestPhone", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
@@ -296,8 +379,10 @@ router.patch("/:id", async (req, res) => {
  * @swagger
  * /api/reservations/{id}:
  *   delete:
- *     summary: Delete a reservation request
+ *     summary: Delete a reservation request (admin only)
  *     tags: [Reservation Requests]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -316,12 +401,14 @@ router.patch("/:id", async (req, res) => {
  *                 message:
  *                   type: string
  *                   example: Reservation deleted successfully
+ *       401:
+ *         description: Authentication required
  *       404:
  *         description: Reservation not found
  *       500:
  *         description: Server error
  */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAdmin, async (req, res) => {
     try {
         const reservation = await ReservationRequest.findByIdAndDelete(req.params.id);
 
