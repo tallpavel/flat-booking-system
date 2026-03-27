@@ -1,8 +1,29 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config/authMiddleware");
 const totp = require("../config/totp");
+
+// ── Brute-force protection: 5 failed login attempts per IP per 15 min ─
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Only count responses with status 401 (wrong password / wrong 2FA code)
+    skipSuccessfulRequests: true,
+    skipFailedRequests: false,
+    // Override: only treat 401 as a "failed request" for counting purposes.
+    // 400 (missing fields) and 500 (server errors) are NOT counted.
+    requestWasSuccessful: (_req, res) => res.statusCode !== 401,
+    message: {
+        message: "Too many failed login attempts. Please try again in 15 minutes.",
+    },
+    keyGenerator: (req) => {
+        return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    },
+});
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "paraiso2026";
 
@@ -25,7 +46,7 @@ function signToken() {
  *  - 2FA not set up  → { requires2FASetup: true, qrDataUrl, secret }
  *  - 2FA is set up   → { requires2FA: true }
  */
-router.post("/vchod", async (req, res) => {
+router.post("/vchod", loginLimiter, async (req, res) => {
     try {
         const { password } = req.body;
 
@@ -63,7 +84,7 @@ router.post("/vchod", async (req, res) => {
  *
  * Body: { password, token, secret }
  */
-router.post("/setup-2fa", async (req, res) => {
+router.post("/setup-2fa", loginLimiter, async (req, res) => {
     try {
         const { password, token, secret } = req.body;
 
@@ -100,7 +121,7 @@ router.post("/setup-2fa", async (req, res) => {
  *
  * Body: { password, token }
  */
-router.post("/verify-2fa", async (req, res) => {
+router.post("/verify-2fa", loginLimiter, async (req, res) => {
     try {
         const { password, token } = req.body;
 
