@@ -352,7 +352,7 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
             return res.status(400).json({ message: "No remaining balance" });
         }
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = req.frontendUrl;
         const checkInDate = reservation.checkIn.toISOString().split("T")[0];
         const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
 
@@ -447,7 +447,7 @@ router.post("/:id/send-full-payment", requireAdmin, async (req, res) => {
             return res.status(400).json({ message: "Reservation is already fully paid" });
         }
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = req.frontendUrl;
         const checkInDate = reservation.checkIn.toISOString().split("T")[0];
         const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
 

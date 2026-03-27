@@ -25,7 +25,7 @@ function signToken() {
  *  - 2FA not set up  → { requires2FASetup: true, qrDataUrl, secret }
  *  - 2FA is set up   → { requires2FA: true }
  */
-router.post("/login", async (req, res) => {
+router.post("/vchod", async (req, res) => {
     try {
         const { password } = req.body;
 

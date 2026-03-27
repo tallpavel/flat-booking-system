@@ -24,18 +24,34 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ─────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+    "http://localhost:5173",  // Vite dev server (paraiso-booking-app)
+    "http://localhost:4173",  // Vite preview
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://13.50.243.218",   // AWS EC2 public IP
+    "http://ec2-13-50-243-218.eu-north-1.compute.amazonaws.com", // AWS EC2 public DNS
+    "https://paraiso-booking.duckdns.org",
+];
+
 app.use(cors({
-    origin: [
-        "http://localhost:5173",  // Vite dev server (paraiso-booking-app)
-        "http://localhost:4173",  // Vite preview
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://13.50.243.218",   // AWS EC2 public IP
-        "http://ec2-13-50-243-218.eu-north-1.compute.amazonaws.com", // AWS EC2 public DNS
-    ],
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
+// Middle-ware to dynamically resolve frontend URL for absolute links in emails
+app.use((req, res, next) => {
+    const origin = req.get("origin");
+    // If the origin is in our whitelist, use it as the base for links
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        req.frontendUrl = origin;
+    } else {
+        // Fallback to .env value or localhost
+        req.frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    }
+    next();
+});
 
 // ── Stripe webhook needs raw body (MUST come before express.json()) ───
 app.use("/api/stripe", express.raw({ type: "application/json" }), stripeWebhookRoutes);
@@ -53,8 +69,8 @@ app.use("/api/reservations", reservationConfirmRoutes);
 app.use("/api/reservations-confirmed", reservationsConfirmedRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/daily-rates", dailyRatesRoutes);
-app.use("/api/admin", adminAuthRoutes);
-app.use("/api/admin", adminStatsRoutes);
+app.use("/api/centralni-mozek-stranky", adminAuthRoutes);
+app.use("/api/centralni-mozek-stranky", adminStatsRoutes);
 app.use("/api/checkin", checkInRoutes);
 app.use("/api/blocked-dates", blockedDatesRoutes);
 app.use("/api/seasonal-rates", seasonalRatesRoutes);

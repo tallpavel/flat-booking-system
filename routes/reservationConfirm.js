@@ -77,7 +77,7 @@ router.post("/:id/confirm", async (req, res) => {
         const chargeAmount = isShortNotice ? request.totalPrice : depositAmount;
 
         // 4. Create Stripe Checkout Session
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = req.frontendUrl;
         const checkInStr = request.checkIn.toISOString().split("T")[0];
         const checkOutStr = request.checkOut.toISOString().split("T")[0];
 

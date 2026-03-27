@@ -44,7 +44,7 @@ router.post("/send/:reservationId", requireAdmin, async (req, res) => {
         await reservation.save();
 
         // Build and send the email
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = req.frontendUrl;
         const checkInUrl = `${frontendUrl}/checkin/${checkInRecord.token}`;
 
         const checkInDate = reservation.checkIn.toISOString().split("T")[0];
@@ -92,7 +92,7 @@ router.get("/reservation/:reservationId", requireAdmin, async (req, res) => {
             return res.status(404).json({ message: "No check-in data found for this reservation" });
         }
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = req.frontendUrl;
 
         res.json({
             guestName: checkInRecord.guestName,
