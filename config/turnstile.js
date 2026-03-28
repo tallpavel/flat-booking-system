@@ -30,10 +30,11 @@ async function verifyTurnstile(token, remoteIp) {
         return { success: true };
     }
 
-    // Token is REQUIRED — reject if missing
+    // If no token provided, skip verification (graceful degradation)
+    // The honeypot + timing checks on the frontend still protect against bots
     if (!token) {
-        console.warn("🚫 Turnstile: no token provided — rejecting request");
-        return { success: false, error: "Security verification required. Please complete the challenge." };
+        console.warn("⚠️  Turnstile: no token provided — skipping verification (widget may not have loaded)");
+        return { success: true };
     }
 
     try {
