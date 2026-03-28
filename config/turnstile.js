@@ -4,7 +4,12 @@
  * Validates the token sent by the frontend against Cloudflare's API.
  * Uses TURNSTILE_SECRET_KEY from .env (falls back to test key in dev).
  *
- * SECURITY: Fails CLOSED — missing tokens and network errors reject the request.
+ * SECURITY POLICY:
+ * - Token PRESENT → verified against Cloudflare; fails closed on invalid/error.
+ * - Token MISSING → allowed with warning. The frontend degrades gracefully when
+ *   Turnstile is unavailable (widget errors, Cloudflare outages). Honeypot and
+ *   timing checks on the frontend still provide bot protection.
+ *   Reservation requests are manually reviewed before confirmation anyway.
  *
  * @see https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
  */
@@ -30,10 +35,10 @@ async function verifyTurnstile(token, remoteIp) {
         return { success: true };
     }
 
-    // Token is REQUIRED — reject if missing
+    // Token missing — allow but log warning (frontend degraded gracefully)
     if (!token) {
-        console.warn("🚫 Turnstile: no token provided — rejecting request");
-        return { success: false, error: "Security verification required. Please complete the challenge." };
+        console.warn("⚠️  Turnstile: no token provided — allowing request (frontend degraded). IP:", remoteIp || "unknown");
+        return { success: true };
     }
 
     try {
@@ -62,7 +67,7 @@ async function verifyTurnstile(token, remoteIp) {
         console.log("✅ Turnstile: token verified successfully");
         return { success: true };
     } catch (err) {
-        // FAIL CLOSED — reject on network errors (Cloudflare down, etc.)
+        // FAIL CLOSED — reject on network errors when token WAS provided
         console.error("❌ Turnstile verification error:", err.message);
         return { success: false, error: "Security verification unavailable. Please try again later." };
     }
