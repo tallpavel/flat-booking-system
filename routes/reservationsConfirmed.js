@@ -8,6 +8,10 @@ const { buildUpdateEmail } = require("../emails/updateEmail");
 const { buildCancellationEmail } = require("../emails/cancellationEmail");
 const { buildRemainingBalanceEmail } = require("../emails/remainingBalanceEmail");
 const { buildFullPaymentEmail } = require("../emails/fullPaymentEmail");
+const { buildPaypalRemainingBalanceEmail } = require("../emails/paypalRemainingBalanceEmail");
+const { buildPaypalFullPaymentEmail } = require("../emails/paypalFullPaymentEmail");
+const { buildConfirmationEmail } = require("../emails/confirmationEmail");
+const { buildPaypalConfirmationEmail } = require("../emails/paypalConfirmationEmail");
 const { emailAttachments } = require("../emails/emailLayout");
 
 /**
@@ -118,10 +122,12 @@ router.patch("/:id/checkin", requireAdmin, async (req, res) => {
  */
 router.delete("/:id", requireAdmin, async (req, res) => {
     try {
+        const cancellationReason = req.body?.reason || "";
+
         // Soft-delete: set status to cancelled instead of removing
         const reservation = await ReservationConfirmed.findByIdAndUpdate(
             req.params.id,
-            { status: "cancelled", cancelledAt: new Date() },
+            { status: "cancelled", cancelledAt: new Date(), cancellationReason },
             { new: true }
         );
 
@@ -141,6 +147,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
                 nights: reservation.nights,
                 totalPrice: reservation.totalPrice,
                 locale: reservation.locale || "en",
+                reason: cancellationReason,
             });
 
             await getTransporter().sendMail({
@@ -170,7 +177,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
 router.patch("/:id", requireAdmin, async (req, res) => {
     try {
         const updates = {};
-        const allowedFields = ["guestName", "guestEmail", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
+        const allowedFields = ["guestName", "guestEmail", "checkIn", "checkOut", "nights", "totalPrice", "comment", "preferredPaymentMethod"];
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 updates[field] = req.body[field];
@@ -225,6 +232,7 @@ router.patch("/:id", requireAdmin, async (req, res) => {
             guestName: "Guest Name", guestEmail: "Email",
             checkIn: "Check-in", checkOut: "Check-out",
             nights: "Nights", totalPrice: "Total Price", comment: "Comment",
+            preferredPaymentMethod: "Payment Method",
         };
         for (const field of allowedFields) {
             if (updates[field] === undefined) continue;
@@ -329,6 +337,123 @@ router.get("/archived/list", requireAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/reservations-confirmed/:id/send-deposit
+ * Resends the confirmation email with a payment link for the deposit amount.
+ * Useful if the guest lost the email or wants to switch payment methods.
+ */
+router.post("/:id/send-deposit", requireAdmin, async (req, res) => {
+    try {
+        const reservation = await ReservationConfirmed.findById(req.params.id);
+        if (!reservation) {
+            return res.status(404).json({ message: "Reservation not found" });
+        }
+
+        // Block if already paid
+        if (reservation.paymentStatus === "paid") {
+            return res.status(400).json({ message: "Deposit is already paid" });
+        }
+
+        // Determine payment method: body param > reservation preference > stripe
+        const paymentMethod = req.body?.paymentMethod || reservation.preferredPaymentMethod || "stripe";
+        const usePaypal = paymentMethod === "paypal";
+
+        const frontendUrl = req.frontendUrl;
+        const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+        const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+        let paymentUrl = "";
+
+        if (usePaypal) {
+            // PayPal path
+            const paypalUsername = process.env.PAYPAL_ME_USERNAME;
+            paymentUrl = `https://paypal.me/${paypalUsername}/${reservation.depositAmount}EUR`;
+            reservation.paypalPaymentUrl = paymentUrl;
+            reservation.paymentStatus = "pending";
+            await reservation.save();
+        } else {
+            // Stripe path
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ["card"],
+                mode: "payment",
+                customer_email: reservation.guestEmail,
+                line_items: [
+                    {
+                        price_data: {
+                            currency: "eur",
+                            product_data: {
+                                name: `Reservation Deposit: ${reservation.guestName}`,
+                                description: `Paraíso Verónica's Flat: ${checkInDate} to ${checkOutDate}`,
+                            },
+                            unit_amount: Math.round(reservation.depositAmount * 100),
+                        },
+                        quantity: 1,
+                    },
+                ],
+                success_url: `${frontendUrl}/payment?payment=success&type=deposit`,
+                cancel_url: `${frontendUrl}/payment?payment=cancelled&type=deposit`,
+            });
+
+            paymentUrl = session.url;
+            reservation.stripeSessionId = session.id;
+            reservation.stripePaymentUrl = session.url;
+            reservation.paymentStatus = "pending";
+            await reservation.save();
+        }
+
+        // Send confirmation email (with deposit link)
+        try {
+            let emailData;
+            if (usePaypal) {
+                emailData = buildPaypalConfirmationEmail({
+                    guestName: reservation.guestName,
+                    checkIn: checkInDate,
+                    checkOut: checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    depositAmount: reservation.depositAmount,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`🅿️ PayPal deposit resend email sent to ${reservation.guestEmail}`);
+            } else {
+                emailData = buildConfirmationEmail({
+                    guestName: reservation.guestName,
+                    checkIn: checkInDate,
+                    checkOut: checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    depositAmount: reservation.depositAmount,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`💳 Deposit resend email sent to ${reservation.guestEmail}`);
+            }
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject: emailData.subject,
+                html: emailData.html,
+                text: emailData.text,
+                attachments: emailAttachments,
+            });
+        } catch (emailError) {
+            console.error("⚠️ Failed to resend deposit email:", emailError.message);
+        }
+
+        res.json({
+            message: "Deposit payment link created and email resent",
+            paymentUrl,
+            depositAmount: reservation.depositAmount,
+            paymentMethod,
+        });
+    } catch (error) {
+        console.error("Error resending deposit payment:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+/**
  * POST /:id/send-remaining-payment
  * Creates a Stripe Checkout session for the remaining balance and sends payment email to guest.
  */
@@ -352,77 +477,108 @@ router.post("/:id/send-remaining-payment", requireAdmin, async (req, res) => {
             return res.status(400).json({ message: "No remaining balance" });
         }
 
+        // Determine payment method: body param > reservation preference > stripe
+        const paymentMethod = req.body?.paymentMethod || reservation.preferredPaymentMethod || "stripe";
+        const usePaypal = paymentMethod === "paypal";
+
         const frontendUrl = req.frontendUrl;
         const checkInDate = reservation.checkIn.toISOString().split("T")[0];
         const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
 
-        // Create Stripe Checkout session for remaining balance
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card"],
-            mode: "payment",
-            customer_email: reservation.guestEmail,
-            line_items: [
-                {
-                    price_data: {
-                        currency: "eur",
-                        product_data: {
-                            name: `Paraíso — Remaining Balance for ${reservation.nights}-night stay`,
-                            description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} · Deposit paid: €${reservation.depositAmount}`,
+        let paymentUrl = "";
+
+        if (usePaypal) {
+            // PayPal path
+            const paypalUsername = process.env.PAYPAL_ME_USERNAME;
+            paymentUrl = `https://paypal.me/${paypalUsername}/${remainingBalance}EUR`;
+            reservation.remainingPaypalPaymentUrl = paymentUrl;
+            reservation.remainingPaymentStatus = "pending";
+            await reservation.save();
+        } else {
+            // Stripe path
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ["card"],
+                mode: "payment",
+                customer_email: reservation.guestEmail,
+                line_items: [
+                    {
+                        price_data: {
+                            currency: "eur",
+                            product_data: {
+                                name: `Paraíso — Remaining Balance for ${reservation.nights}-night stay`,
+                                description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} · Deposit paid: €${reservation.depositAmount}`,
+                            },
+                            unit_amount: remainingBalance * 100,
                         },
-                        unit_amount: remainingBalance * 100,
+                        quantity: 1,
                     },
-                    quantity: 1,
+                ],
+                metadata: {
+                    reservationId: reservation._id.toString(),
+                    guestName: reservation.guestName,
+                    paymentType: "remaining_balance",
+                    checkIn: checkInDate,
+                    checkOut: checkOutDate,
                 },
-            ],
-            metadata: {
-                reservationId: reservation._id.toString(),
-                guestName: reservation.guestName,
-                paymentType: "remaining_balance",
-                checkIn: checkInDate,
-                checkOut: checkOutDate,
-            },
-            success_url: `${frontendUrl}/payment?payment=success&type=remaining`,
-            cancel_url: `${frontendUrl}/payment?payment=cancelled&type=remaining`,
-        });
-
-        // Update reservation with remaining payment session info
-        reservation.remainingStripeSessionId = session.id;
-        reservation.remainingPaymentUrl = session.url;
-        reservation.remainingPaymentStatus = "pending";
-        await reservation.save();
-
-        // Send remaining balance email to guest
-        try {
-            const { subject, html, text } = buildRemainingBalanceEmail({
-                guestName: reservation.guestName,
-                checkInDate,
-                checkOutDate,
-                nights: reservation.nights,
-                totalPrice: reservation.totalPrice,
-                depositAmount: reservation.depositAmount,
-                remainingBalance,
-                paymentUrl: session.url,
-                locale: reservation.locale || "en",
+                success_url: `${frontendUrl}/payment?payment=success&type=remaining`,
+                cancel_url: `${frontendUrl}/payment?payment=cancelled&type=remaining`,
             });
+
+            paymentUrl = session.url;
+            reservation.remainingStripeSessionId = session.id;
+            reservation.remainingPaymentUrl = session.url;
+            reservation.remainingPaymentStatus = "pending";
+            await reservation.save();
+        }
+
+        // Send remaining balance email
+        try {
+            let emailData;
+            if (usePaypal) {
+                emailData = buildPaypalRemainingBalanceEmail({
+                    guestName: reservation.guestName,
+                    checkInDate,
+                    checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    depositAmount: reservation.depositAmount,
+                    remainingBalance,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`🅿️ PayPal remaining balance email sent to ${reservation.guestEmail}`);
+            } else {
+                emailData = buildRemainingBalanceEmail({
+                    guestName: reservation.guestName,
+                    checkInDate,
+                    checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    depositAmount: reservation.depositAmount,
+                    remainingBalance,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`💳 Remaining balance email sent to ${reservation.guestEmail}`);
+            }
 
             await getTransporter().sendMail({
                 from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
                 to: reservation.guestEmail,
-                subject,
-                html,
-                text,
+                subject: emailData.subject,
+                html: emailData.html,
+                text: emailData.text,
                 attachments: emailAttachments,
             });
-
-            console.log(`💳 Remaining balance email sent to ${reservation.guestEmail}`);
         } catch (emailError) {
             console.error("⚠️ Failed to send remaining balance email:", emailError.message);
         }
 
         res.json({
             message: "Remaining balance payment link created and email sent",
-            paymentUrl: session.url,
+            paymentUrl,
             remainingBalance,
+            paymentMethod,
         });
     } catch (error) {
         console.error("Error creating remaining payment:", error);
@@ -447,75 +603,104 @@ router.post("/:id/send-full-payment", requireAdmin, async (req, res) => {
             return res.status(400).json({ message: "Reservation is already fully paid" });
         }
 
+        // Determine payment method: body param > reservation preference > stripe
+        const paymentMethod = req.body?.paymentMethod || reservation.preferredPaymentMethod || "stripe";
+        const usePaypal = paymentMethod === "paypal";
+
         const frontendUrl = req.frontendUrl;
         const checkInDate = reservation.checkIn.toISOString().split("T")[0];
         const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
 
-        // Create Stripe Checkout session for the FULL amount
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card"],
-            mode: "payment",
-            customer_email: reservation.guestEmail,
-            line_items: [
-                {
-                    price_data: {
-                        currency: "eur",
-                        product_data: {
-                            name: `Paraíso — Full Payment for ${reservation.nights}-night stay`,
-                            description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} (Last-minute booking — full payment required)`,
-                        },
-                        unit_amount: reservation.totalPrice * 100,
-                    },
-                    quantity: 1,
-                },
-            ],
-            metadata: {
-                reservationId: reservation._id.toString(),
-                guestName: reservation.guestName,
-                paymentType: "full_payment",
-                checkIn: checkInDate,
-                checkOut: checkOutDate,
-            },
-            success_url: `${frontendUrl}/payment?payment=success&type=full`,
-            cancel_url: `${frontendUrl}/payment?payment=cancelled&type=full`,
-        });
+        let paymentUrl = "";
 
-        // Store session info in the remaining payment fields
-        reservation.remainingStripeSessionId = session.id;
-        reservation.remainingPaymentUrl = session.url;
-        reservation.remainingPaymentStatus = "pending";
-        await reservation.save();
+        if (usePaypal) {
+            // PayPal path
+            const paypalUsername = process.env.PAYPAL_ME_USERNAME;
+            paymentUrl = `https://paypal.me/${paypalUsername}/${reservation.totalPrice}EUR`;
+            reservation.remainingPaypalPaymentUrl = paymentUrl;
+            reservation.remainingPaymentStatus = "pending";
+            await reservation.save();
+        } else {
+            // Stripe path
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ["card"],
+                mode: "payment",
+                customer_email: reservation.guestEmail,
+                line_items: [
+                    {
+                        price_data: {
+                            currency: "eur",
+                            product_data: {
+                                name: `Paraíso — Full Payment for ${reservation.nights}-night stay`,
+                                description: `${checkInDate} → ${checkOutDate} · Total: €${reservation.totalPrice} (Last-minute booking — full payment required)`,
+                            },
+                            unit_amount: reservation.totalPrice * 100,
+                        },
+                        quantity: 1,
+                    },
+                ],
+                metadata: {
+                    reservationId: reservation._id.toString(),
+                    guestName: reservation.guestName,
+                    paymentType: "full_payment",
+                    checkIn: checkInDate,
+                    checkOut: checkOutDate,
+                },
+                success_url: `${frontendUrl}/payment?payment=success&type=full`,
+                cancel_url: `${frontendUrl}/payment?payment=cancelled&type=full`,
+            });
+
+            paymentUrl = session.url;
+            reservation.remainingStripeSessionId = session.id;
+            reservation.remainingPaymentUrl = session.url;
+            reservation.remainingPaymentStatus = "pending";
+            await reservation.save();
+        }
 
         // Send full payment email
         try {
-            const { subject, html, text } = buildFullPaymentEmail({
-                guestName: reservation.guestName,
-                checkInDate,
-                checkOutDate,
-                nights: reservation.nights,
-                totalPrice: reservation.totalPrice,
-                paymentUrl: session.url,
-                locale: reservation.locale || "en",
-            });
+            let emailData;
+            if (usePaypal) {
+                emailData = buildPaypalFullPaymentEmail({
+                    guestName: reservation.guestName,
+                    checkInDate,
+                    checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`🅿️ PayPal full payment email sent to ${reservation.guestEmail}`);
+            } else {
+                emailData = buildFullPaymentEmail({
+                    guestName: reservation.guestName,
+                    checkInDate,
+                    checkOutDate,
+                    nights: reservation.nights,
+                    totalPrice: reservation.totalPrice,
+                    paymentUrl,
+                    locale: reservation.locale || "en",
+                });
+                console.log(`💳 Full payment email sent to ${reservation.guestEmail}`);
+            }
 
             await getTransporter().sendMail({
                 from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
                 to: reservation.guestEmail,
-                subject,
-                html,
-                text,
+                subject: emailData.subject,
+                html: emailData.html,
+                text: emailData.text,
                 attachments: emailAttachments,
             });
-
-            console.log(`💳 Full payment email sent to ${reservation.guestEmail}`);
         } catch (emailError) {
             console.error("⚠️ Failed to send full payment email:", emailError.message);
         }
 
         res.json({
             message: "Full payment link created and email sent",
-            paymentUrl: session.url,
+            paymentUrl,
             totalAmount: reservation.totalPrice,
+            paymentMethod,
         });
     } catch (error) {
         console.error("Error creating full payment:", error);

@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, formatDate, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, formatDate, tokens, iconCalendar, iconMoon, iconEdit } = require('./emailLayout');
 
 function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, nights, totalPrice, locale = 'en' }) {
 
@@ -15,7 +15,7 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
             changesTitle: 'What Changed',
             summaryTitle: 'Updated Booking',
             checkIn: 'Check-in', checkOut: 'Check-out', nights: 'Nights', totalPrice: 'Total Price',
-            subject: `📝 Reservation Updated — ${checkInDate} → ${checkOutDate}`,
+            subject: `Reservation Updated — ${checkInDate} → ${checkOutDate}`,
         },
         cs: {
             heading: 'Rezervace aktualizována',
@@ -23,7 +23,7 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
             changesTitle: 'Co se změnilo',
             summaryTitle: 'Aktualizovaná rezervace',
             checkIn: 'Příjezd', checkOut: 'Odjezd', nights: 'Počet nocí', totalPrice: 'Celková cena',
-            subject: `📝 Rezervace aktualizována — ${checkInDate} → ${checkOutDate}`,
+            subject: `Rezervace aktualizována — ${checkInDate} → ${checkOutDate}`,
         },
         es: {
             heading: 'Reserva Actualizada',
@@ -31,7 +31,7 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
             changesTitle: 'Qué cambió',
             summaryTitle: 'Reserva actualizada',
             checkIn: 'Entrada', checkOut: 'Salida', nights: 'Noches', totalPrice: 'Precio total',
-            subject: `📝 Reserva Actualizada — ${checkInDate} → ${checkOutDate}`,
+            subject: `Reserva Actualizada — ${checkInDate} → ${checkOutDate}`,
         },
     };
 
@@ -65,9 +65,9 @@ function buildUpdateEmail({ guestName, changes, checkInDate, checkOutDate, night
         detailsCard({
             accentColor: tokens.gold,
             rows: [
-                [l.checkIn, `📅 ${fmtIn}`],
-                [l.checkOut, `📅 ${fmtOut}`],
-                [l.nights, `🌙 ${nights}`],
+                [l.checkIn, `${iconCalendar(tokens.gold)} ${fmtIn}`],
+                [l.checkOut, `${iconCalendar(tokens.gold)} ${fmtOut}`],
+                [l.nights, `${iconMoon()} ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
             ],
         }),

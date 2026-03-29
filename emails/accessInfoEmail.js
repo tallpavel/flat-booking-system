@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens, iconCalendar, iconMoon, iconKey, iconBuilding, iconDoor, iconWifi, iconClipboard, iconPin, iconPhone } = require('./emailLayout');
 
 function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, locale = 'en' }) {
 
@@ -13,8 +13,8 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
             heading: 'Access Information',
             greeting: `Hi <strong>${guestName}</strong>,<br><br>Welcome! Here is everything you need for your stay at <strong>Verónica's Flat</strong>. Please save this email for reference.`,
             accessTitle: 'Access Information',
-            buildingEntry: 'Building entrance', buildingCode: '🏢 Code: <strong>2580</strong>',
-            apartmentDoor: 'Apartment door', apartmentCode: '🚪 Lockbox code: <strong>1234</strong>',
+            buildingEntry: 'Building entrance', buildingCode: `${iconBuilding()} Code: <strong>2580</strong>`,
+            apartmentDoor: 'Apartment door', apartmentCode: `${iconDoor()} Lockbox code: <strong>1234</strong>`,
             floor: 'Floor / Door', floorValue: '2nd floor, door B',
             wifiTitle: 'WiFi',
             network: 'Network name', networkValue: 'Veronicas_Flat',
@@ -30,17 +30,17 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
                 'No pets allowed',
                 'Pool hours: 09:00 – 21:00',
             ],
-            address: '📍 <strong>Address:</strong> Playa Paraíso, Adeje, Tenerife.',
+            address: `${iconPin()} <strong>Address:</strong> Playa Paraíso, Adeje, Tenerife.`,
             directions: 'Get directions →',
-            emergency: '📞 <strong>Emergency contact:</strong> +34 600 000 000 (WhatsApp available)',
-            subject: '🔑 Access Information — Paraíso',
+            emergency: `${iconPhone()} <strong>Emergency contact:</strong> +34 600 000 000 (WhatsApp available)`,
+            subject: 'Access Information — Paraíso',
         },
         cs: {
             heading: 'Přístupové údaje',
             greeting: `Ahoj <strong>${guestName}</strong>,<br><br>Vítejte! Zde jsou všechny informace pro váš pobyt v <strong>apartmánu Verónica's Flat</strong>. Prosím uložte si tento email.`,
             accessTitle: 'Přístupové údaje',
-            buildingEntry: 'Vchod do budovy', buildingCode: '🏢 Kód: <strong>2580</strong>',
-            apartmentDoor: 'Dveře apartmánu', apartmentCode: '🚪 Kód schránky: <strong>1234</strong>',
+            buildingEntry: 'Vchod do budovy', buildingCode: `${iconBuilding()} Kód: <strong>2580</strong>`,
+            apartmentDoor: 'Dveře apartmánu', apartmentCode: `${iconDoor()} Kód schránky: <strong>1234</strong>`,
             floor: 'Patro / Dveře', floorValue: '2. patro, dveře B',
             wifiTitle: 'WiFi',
             network: 'Název sítě', networkValue: 'Veronicas_Flat',
@@ -56,17 +56,17 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
                 'Zvířata nejsou povolena',
                 'Provozní doba bazénu: 09:00 – 21:00',
             ],
-            address: '📍 <strong>Adresa:</strong> Playa Paraíso, Adeje, Tenerife.',
+            address: `${iconPin()} <strong>Adresa:</strong> Playa Paraíso, Adeje, Tenerife.`,
             directions: 'Navigace →',
-            emergency: '📞 <strong>Nouzový kontakt:</strong> +34 600 000 000 (WhatsApp k dispozici)',
-            subject: '🔑 Přístupové údaje — Paraíso',
+            emergency: `${iconPhone()} <strong>Nouzový kontakt:</strong> +34 600 000 000 (WhatsApp k dispozici)`,
+            subject: 'Přístupové údaje — Paraíso',
         },
         es: {
             heading: 'Información de acceso',
             greeting: `Hola <strong>${guestName}</strong>,<br><br>¡Bienvenido/a! Aquí tienes toda la información para tu estancia en <strong>Verónica's Flat</strong>. Por favor, guarda este email como referencia.`,
             accessTitle: 'Información de acceso',
-            buildingEntry: 'Entrada al edificio', buildingCode: '🏢 Código: <strong>2580</strong>',
-            apartmentDoor: 'Puerta del apartamento', apartmentCode: '🚪 Código caja: <strong>1234</strong>',
+            buildingEntry: 'Entrada al edificio', buildingCode: `${iconBuilding()} Código: <strong>2580</strong>`,
+            apartmentDoor: 'Puerta del apartamento', apartmentCode: `${iconDoor()} Código caja: <strong>1234</strong>`,
             floor: 'Planta / Puerta', floorValue: '2ª planta, puerta B',
             wifiTitle: 'WiFi',
             network: 'Nombre de red', networkValue: 'Veronicas_Flat',
@@ -82,10 +82,10 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
                 'No se admiten mascotas',
                 'Horario de piscina: 09:00 – 21:00',
             ],
-            address: '📍 <strong>Dirección:</strong> Playa Paraíso, Adeje, Tenerife.',
+            address: `${iconPin()} <strong>Dirección:</strong> Playa Paraíso, Adeje, Tenerife.`,
             directions: 'Cómo llegar →',
-            emergency: '📞 <strong>Contacto de emergencia:</strong> +34 600 000 000 (WhatsApp disponible)',
-            subject: '🔑 Información de acceso — Paraíso',
+            emergency: `${iconPhone()} <strong>Contacto de emergencia:</strong> +34 600 000 000 (WhatsApp disponible)`,
+            subject: 'Información de acceso — Paraíso',
         },
     };
 
@@ -97,7 +97,7 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
     // House rules callout
     const rulesHtml = l.rules.map(r => `• ${r}`).join('<br>');
     const rulesBox = `<div style="background: ${tokens.sand}; border: 1px solid ${tokens.gold}; border-radius: 12px; padding: 16px 20px; margin: 16px 0;">
-        <h3 style="color: ${tokens.navy}; margin: 0 0 10px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 700;">📋 ${l.rulesTitle}</h3>
+        <h3 style="color: ${tokens.navy}; margin: 0 0 10px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 700;">${iconClipboard()} ${l.rulesTitle}</h3>
         <p style="color: ${tokens.bodyText}; font-size: 13px; line-height: 1.8; margin: 0;">${rulesHtml}</p>
     </div>`;
 
@@ -109,7 +109,7 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
         greeting(l.greeting),
 
         // Access
-        subHead(`🔑 ${l.accessTitle}`),
+        subHead(`${iconKey()} ${l.accessTitle}`),
         detailsCard({
             accentColor: tokens.navy,
             rows: [
@@ -120,7 +120,7 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
         }),
 
         // WiFi
-        subHead(`📶 ${l.wifiTitle}`),
+        subHead(`${iconWifi()} ${l.wifiTitle}`),
         detailsCard({
             accentColor: tokens.navy,
             rows: [
@@ -130,13 +130,13 @@ function buildAccessInfoEmail({ guestName, checkInDate, checkOutDate, nights, lo
         }),
 
         // Stay
-        subHead(`📅 ${l.stayTitle}`),
+        subHead(`${iconCalendar(tokens.navy)} ${l.stayTitle}`),
         detailsCard({
             accentColor: tokens.navy,
             rows: [
-                [l.checkIn, `📅 ${fmtIn} · ${l.checkInTime}`],
-                [l.checkOut, `📅 ${fmtOut} · ${l.checkOutTime}`],
-                [l.nightsLabel, `🌙 ${nights}`],
+                [l.checkIn, `${iconCalendar(tokens.navy)} ${fmtIn} · ${l.checkInTime}`],
+                [l.checkOut, `${iconCalendar(tokens.navy)} ${fmtOut} · ${l.checkOutTime}`],
+                [l.nightsLabel, `${iconMoon()} ${nights}`],
             ],
         }),
 

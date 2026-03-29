@@ -111,7 +111,7 @@ function wrapEmail({ content, locale = 'en' }) {
                     <tr>
                         <td style="background-color: ${tokens.cream}; padding: 24px 32px; text-align: center; border-top: 1px solid #E8E4DF;">
                             <p style="margin: 0 0 4px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: ${tokens.warmGray};">
-                                ${ft.brand} 🌴
+                                ${ft.brand} <span style="display:inline-block;width:6px;height:6px;background:${tokens.gold};border-radius:50%;vertical-align:middle;margin-left:2px;"></span>
                             </p>
                             <p style="margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: ${tokens.lightGray};">
                                 ${ft.auto}
@@ -127,7 +127,138 @@ function wrapEmail({ content, locale = 'en' }) {
 </html>`;
 }
 
-/* ── Shared style helpers ─────────────────────────────────────────── */
+/* ── Pure CSS icon system (email-safe, no SVG) ───────────────────── */
+
+/**
+ * Creates a text-character icon inside a styled circle.
+ * Uses ONLY CSS properties supported by all email clients.
+ * No SVG, no images, no special Unicode — just borders and safe chars.
+ */
+function _charIcon(char, color, bgColor, size = 20) {
+    const bg = bgColor || color + '12';
+    const fs = Math.round(size * 0.55);
+    return `<span style="display:inline-block;width:${size}px;height:${size}px;line-height:${size}px;text-align:center;background:${bg};border-radius:50%;vertical-align:text-bottom;margin-right:6px;color:${color};font-size:${fs}px;font-weight:700;font-family:Arial,Helvetica,sans-serif;mso-line-height-rule:exactly;">${char}</span>`;
+}
+
+/**
+ * Creates a CSS-shape icon inside a styled circle.
+ * The inner element uses border properties to form recognizable shapes.
+ */
+function _shapeIcon(innerHtml, color, bgColor, size = 20) {
+    const bg = bgColor || color + '12';
+    return `<span style="display:inline-block;width:${size}px;height:${size}px;line-height:${size}px;text-align:center;background:${bg};border-radius:50%;vertical-align:text-bottom;margin-right:6px;mso-line-height-rule:exactly;">${innerHtml}</span>`;
+}
+
+/** Calendar icon — square with thick top bar (calendar page header) */
+function iconCalendar(color = tokens.coral) {
+    const inner = `<span style="display:inline-block;width:10px;height:8px;border:1.5px solid ${color};border-top-width:3px;border-radius:1px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Nights icon — crescent moon ☽ */
+function iconMoon(color = tokens.navy) {
+    return _charIcon('&#9789;', color);
+}
+
+/** Credit card icon — rectangle with thick bottom stripe */
+function iconCard(color = tokens.coral) {
+    const inner = `<span style="display:inline-block;width:12px;height:7px;border:1.5px solid ${color};border-radius:1px;border-bottom-width:3px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** PayPal "P" icon */
+function iconPaypal(color = '#003087') {
+    return _charIcon('P', color);
+}
+
+/** Lightbulb / tip icon — "i" for info */
+function iconTip(color = tokens.gold) {
+    return _charIcon('i', color);
+}
+
+/** Clock / timer icon — circle outline (clock face) */
+function iconClock(color = tokens.coral) {
+    const inner = `<span style="display:inline-block;width:10px;height:10px;border:1.5px solid ${color};border-radius:50%;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Checkmark / success icon — ✓ character (universally safe) */
+function iconCheck(color = tokens.success) {
+    return _charIcon('&#10003;', color, color + '12');
+}
+
+/** Key icon — small circle (keyhole) */
+function iconKey(color = tokens.navy) {
+    const inner = `<span style="display:inline-block;width:7px;height:7px;border:2px solid ${color};border-radius:50%;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Pin / location icon — filled dot with ring */
+function iconPin(color = tokens.coral) {
+    const inner = `<span style="display:inline-block;width:6px;height:6px;background:${color};border-radius:50%;border:2px solid ${color}40;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Phone icon */
+function iconPhone(color = tokens.navy) {
+    return _charIcon('&#9742;', color); /* ☎ telephone sign */
+}
+
+/** Bell / notification icon — "!" for alert */
+function iconBell(color = tokens.coral) {
+    return _charIcon('!', color);
+}
+
+/** Mail / envelope icon — small rectangle (envelope shape) */
+function iconMail(color = tokens.navy) {
+    const inner = `<span style="display:inline-block;width:11px;height:7px;border:1.5px solid ${color};border-radius:1px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Edit / pencil icon */
+function iconEdit(color = tokens.navy) {
+    return _charIcon('/', color);
+}
+
+/** Building icon — tall rectangle */
+function iconBuilding(color = tokens.navy) {
+    const inner = `<span style="display:inline-block;width:8px;height:10px;border:1.5px solid ${color};border-radius:1px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Door icon — rectangle with handle dot */
+function iconDoor(color = tokens.navy) {
+    const inner = `<span style="display:inline-block;width:7px;height:10px;border:1.5px solid ${color};border-radius:1px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** WiFi icon */
+function iconWifi(color = tokens.navy) {
+    return _charIcon('~', color);
+}
+
+/** Clipboard / form icon — square with thick top */
+function iconClipboard(color = tokens.gold) {
+    const inner = `<span style="display:inline-block;width:9px;height:10px;border:1.5px solid ${color};border-top-width:3px;border-radius:1px;vertical-align:middle;"></span>`;
+    return _shapeIcon(inner, color);
+}
+
+/** Euro / money icon */
+function iconMoney(color = tokens.gold) {
+    return _charIcon('&euro;', color);
+}
+
+/** Lightning bolt / action icon */
+function iconBolt(color = tokens.coral) {
+    return _charIcon('!', color);
+}
+
+/** X / cancel icon — ✕ character (universally safe) */
+function iconCancel(color = tokens.danger) {
+    return _charIcon('&#10005;', color);
+}
+
+
 
 /** Section heading (e.g. "Booking Details") */
 function sectionHeading(text) {
@@ -203,4 +334,25 @@ module.exports = {
     formatDate,
     tokens,
     emailAttachments,
+    // Icon system
+    iconCalendar,
+    iconMoon,
+    iconCard,
+    iconPaypal,
+    iconTip,
+    iconClock,
+    iconCheck,
+    iconKey,
+    iconPin,
+    iconPhone,
+    iconBell,
+    iconMail,
+    iconEdit,
+    iconBuilding,
+    iconDoor,
+    iconWifi,
+    iconClipboard,
+    iconMoney,
+    iconBolt,
+    iconCancel,
 };

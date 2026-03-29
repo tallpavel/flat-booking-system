@@ -4,7 +4,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, formatDate, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, ctaButton, greeting, note, formatDate, tokens, iconCalendar, iconMoon, iconCard, iconTip, iconClock } = require('./emailLayout');
 
 function buildFullPaymentEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, paymentUrl, locale = 'en' }) {
 
@@ -16,9 +16,9 @@ function buildFullPaymentEmail({ guestName, checkInDate, checkOutDate, nights, t
             amountDue: 'Amount Due',
             ctaLabel: `Pay €${totalPrice}`,
             noteText: 'If you have any questions, please don\'t hesitate to contact us.',
-            deadline: `⏳ <strong>Important:</strong> To keep your reservation active, this payment must be completed within <strong>48 hours</strong>. Unpaid reservations will be automatically cancelled.`,
-            deadlineText: `⏳ Important: This payment must be completed within 48 hours, otherwise the reservation will be automatically cancelled.`,
-            subject: `💳 Full Payment €${totalPrice} — Paraíso`,
+            deadline: `${iconClock()} <strong>Important:</strong> To keep your reservation active, this payment must be completed within <strong>48 hours</strong>. Unpaid reservations will be automatically cancelled.`,
+            deadlineText: `Important: This payment must be completed within 48 hours, otherwise the reservation will be automatically cancelled.`,
+            subject: `Full Payment €${totalPrice} — Paraíso`,
         },
         cs: {
             heading: 'Požadována plná platba',
@@ -26,10 +26,10 @@ function buildFullPaymentEmail({ guestName, checkInDate, checkOutDate, nights, t
             checkIn: 'Příjezd', checkOut: 'Odjezd', nights: 'Počet nocí', totalPrice: 'Celková cena',
             amountDue: 'K úhradě',
             ctaLabel: `Zaplatit €${totalPrice}`,
-            noteText: '💡 Máte-li jakékoliv dotazy, neváhejte nás kontaktovat.',
-            deadline: `⏳ <strong>Upozornění:</strong> Pro zachování rezervace je nutné tuto platbu uhradit do <strong>48 hodin</strong>. Neuhrazené rezervace budou automaticky zrušeny.`,
-            deadlineText: `⏳ Upozornění: Tato platba musí být uhrazena do 48 hodin, jinak bude rezervace automaticky zrušena.`,
-            subject: `💳 Plná platba €${totalPrice} — Paraíso`,
+            noteText: `${iconTip()} Máte-li jakékoliv dotazy, neváhejte nás kontaktovat.`,
+            deadline: `${iconClock()} <strong>Upozornění:</strong> Pro zachování rezervace je nutné tuto platbu uhradit do <strong>48 hodin</strong>. Neuhrazené rezervace budou automaticky zrušeny.`,
+            deadlineText: `Upozornění: Tato platba musí být uhrazena do 48 hodin, jinak bude rezervace automaticky zrušena.`,
+            subject: `Plná platba €${totalPrice} — Paraíso`,
         },
         es: {
             heading: 'Pago Completo Requerido',
@@ -37,10 +37,10 @@ function buildFullPaymentEmail({ guestName, checkInDate, checkOutDate, nights, t
             checkIn: 'Entrada', checkOut: 'Salida', nights: 'Noches', totalPrice: 'Precio total',
             amountDue: 'A pagar',
             ctaLabel: `Pagar €${totalPrice}`,
-            noteText: '💡 Si tienes alguna pregunta, no dudes en contactarnos.',
-            deadline: `⏳ <strong>Aviso importante:</strong> Para mantener tu reserva activa, este pago debe completarse en un plazo de <strong>48 horas</strong>. Las reservas no pagadas se cancelarán automáticamente.`,
-            deadlineText: `⏳ Aviso: Este pago debe completarse en un plazo de 48 horas, de lo contrario la reserva se cancelará automáticamente.`,
-            subject: `💳 Pago Completo €${totalPrice} — Paraíso`,
+            noteText: `${iconTip()} Si tienes alguna pregunta, no dudes en contactarnos.`,
+            deadline: `${iconClock()} <strong>Aviso importante:</strong> Para mantener tu reserva activa, este pago debe completarse en un plazo de <strong>48 horas</strong>. Las reservas no pagadas se cancelarán automáticamente.`,
+            deadlineText: `Aviso: Este pago debe completarse en un plazo de 48 horas, de lo contrario la reserva se cancelará automáticamente.`,
+            subject: `Pago Completo €${totalPrice} — Paraíso`,
         },
     };
 
@@ -55,14 +55,14 @@ function buildFullPaymentEmail({ guestName, checkInDate, checkOutDate, nights, t
         detailsCard({
             accentColor: tokens.coral,
             rows: [
-                [l.checkIn, `📅 ${fmtIn}`],
-                [l.checkOut, `📅 ${fmtOut}`],
-                [l.nights, `🌙 ${nights}`],
+                [l.checkIn, `${iconCalendar()} ${fmtIn}`],
+                [l.checkOut, `${iconCalendar()} ${fmtOut}`],
+                [l.nights, `${iconMoon()} ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
                 [l.amountDue, `€${totalPrice}`, `color: ${tokens.coral}; font-size: 17px; font-weight: 700;`],
             ],
         }),
-        ctaButton({ label: `💳 ${l.ctaLabel}`, url: paymentUrl }),
+        ctaButton({ label: `${iconCard(tokens.white)} ${l.ctaLabel}`, url: paymentUrl }),
         // 48-hour deadline callout box
         `<div style="background: #FFF8F0; border: 1px solid ${tokens.coral}; border-radius: 12px; padding: 16px 20px; margin: 16px 0 4px 0;">
             <p style="color: ${tokens.navy}; font-size: 13px; line-height: 1.6; margin: 0;">${l.deadline}</p>

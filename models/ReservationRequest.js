@@ -70,6 +70,11 @@ const reservationSchema = new mongoose.Schema(
             enum: ["en", "es", "cs"],
             default: "en",
         },
+        preferredPaymentMethod: {
+            type: String,
+            enum: ["stripe", "paypal"],
+            default: "stripe",
+        },
     },
     {
         timestamps: true, // adds createdAt & updatedAt automatically

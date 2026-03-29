@@ -5,7 +5,7 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, badge, formatDate, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, badge, formatDate, tokens, iconCalendar, iconMoon, iconTip, iconCheck } = require('./emailLayout');
 
 function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, depositAmount, remainingBalance, locale = 'en' }) {
 
@@ -16,7 +16,7 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
             greetingPre: `Hi <strong>${guestName}</strong>,<br><br>Your deposit of `,
             greetingPost: ` has been received. Thank you!<br><br>Your reservation is now fully secured. We're looking forward to welcoming you.`,
             checkIn: 'Check-in', checkOut: 'Check-out', nights: 'Nights', totalPrice: 'Total Price', deposit: 'Deposit (30%)',
-            remaining: `💡 <strong>Remaining balance:</strong> €${remainingBalance} — payable on arrival.`,
+            remaining: `${iconTip()} <strong>Remaining balance:</strong> €${remainingBalance} — payable on arrival.`,
             subject: `✅ Deposit Received — €${depositAmount}`,
         },
         cs: {
@@ -25,7 +25,7 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
             greetingPre: `Ahoj <strong>${guestName}</strong>,<br><br>Vaše záloha `,
             greetingPost: ` byla přijata. Děkujeme!<br><br>Vaše rezervace je nyní plně zajištěna. Těšíme se na vás.`,
             checkIn: 'Příjezd', checkOut: 'Odjezd', nights: 'Počet nocí', totalPrice: 'Celková cena', deposit: 'Záloha (30%)',
-            remaining: `💡 <strong>Zbývající částka:</strong> €${remainingBalance} — splatná při příjezdu.`,
+            remaining: `${iconTip()} <strong>Zbývající částka:</strong> €${remainingBalance} — splatná při příjezdu.`,
             subject: `✅ Záloha přijata — €${depositAmount}`,
         },
         es: {
@@ -34,7 +34,7 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
             greetingPre: `Hola <strong>${guestName}</strong>,<br><br>Tu depósito de `,
             greetingPost: ` ha sido recibido. ¡Gracias!<br><br>Tu reserva está completamente asegurada. Estamos deseando recibirte.`,
             checkIn: 'Entrada', checkOut: 'Salida', nights: 'Noches', totalPrice: 'Precio total', deposit: 'Depósito (30%)',
-            remaining: `💡 <strong>Saldo restante:</strong> €${remainingBalance} — a pagar a la llegada.`,
+            remaining: `${iconTip()} <strong>Saldo restante:</strong> €${remainingBalance} — a pagar a la llegada.`,
             subject: `✅ Depósito Recibido — €${depositAmount}`,
         },
     };
@@ -50,11 +50,11 @@ function buildDepositPaidEmail({ guestName, checkInDate, checkOutDate, nights, t
         detailsCard({
             accentColor: tokens.success,
             rows: [
-                [l.checkIn, `📅 ${fmtIn}`],
-                [l.checkOut, `📅 ${fmtOut}`],
-                [l.nights, `🌙 ${nights}`],
+                [l.checkIn, `${iconCalendar(tokens.success)} ${fmtIn}`],
+                [l.checkOut, `${iconCalendar(tokens.success)} ${fmtOut}`],
+                [l.nights, `${iconMoon()} ${nights}`],
                 [l.totalPrice, `€${totalPrice}`],
-                [l.deposit, `€${depositAmount} ✓`, `color: ${tokens.success}; font-size: 17px; font-weight: 700;`],
+                [l.deposit, `${iconCheck()} €${depositAmount}`, `color: ${tokens.success}; font-size: 17px; font-weight: 700;`],
             ],
         }),
         note(l.remaining),

@@ -6,6 +6,7 @@ const BlockedDate = require("../models/BlockedDate");
 const ReservationConfirmed = require("../models/ReservationConfirmed");
 const { getTransporter } = require("../config/mailer");
 const { buildBookingRequestEmail } = require("../emails/bookingRequestEmail");
+const { buildRejectionEmail } = require("../emails/rejectionEmail");
 const { buildOwnerNewRequestEmail } = require("../emails/ownerNewRequestEmail");
 const { emailAttachments } = require("../emails/emailLayout");
 const { verifyTurnstile } = require("../config/turnstile");
@@ -146,7 +147,7 @@ router.get("/:id", requireAdmin, async (req, res) => {
  */
 router.post("/", reservationLimiter, async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, comment, locale, turnstileToken } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, comment, locale, turnstileToken, preferredPaymentMethod } = req.body;
 
         // ── Turnstile bot protection ──────────────────────────────────
         const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
@@ -211,6 +212,7 @@ router.post("/", reservationLimiter, async (req, res) => {
             totalPrice,    // SERVER-computed
             comment: comment || "",
             locale: locale || "en",
+            preferredPaymentMethod: preferredPaymentMethod || "stripe",
         });
 
         res.status(201).json(reservation);
@@ -255,6 +257,7 @@ router.post("/", reservationLimiter, async (req, res) => {
                 nights,
                 totalPrice,
                 comment: comment || "",
+                preferredPaymentMethod: preferredPaymentMethod || "stripe",
             });
 
             await getTransporter().sendMail({
@@ -322,11 +325,11 @@ router.post("/", reservationLimiter, async (req, res) => {
  */
 router.put("/:id", requireAdmin, async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment, preferredPaymentMethod } = req.body;
 
         const reservation = await ReservationRequest.findByIdAndUpdate(
             req.params.id,
-            { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment: comment || "" },
+            { guestName, guestEmail, guestPhone, checkIn, checkOut, nights, totalPrice, comment: comment || "", preferredPaymentMethod: preferredPaymentMethod || "stripe" },
             { new: true, runValidators: true }
         );
 
@@ -348,7 +351,7 @@ router.put("/:id", requireAdmin, async (req, res) => {
 router.patch("/:id", requireAdmin, async (req, res) => {
     try {
         const updates = {};
-        const allowedFields = ["guestName", "guestEmail", "guestPhone", "checkIn", "checkOut", "nights", "totalPrice", "comment"];
+        const allowedFields = ["guestName", "guestEmail", "guestPhone", "checkIn", "checkOut", "nights", "totalPrice", "comment", "preferredPaymentMethod"];
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 updates[field] = req.body[field];
@@ -410,13 +413,48 @@ router.patch("/:id", requireAdmin, async (req, res) => {
  */
 router.delete("/:id", requireAdmin, async (req, res) => {
     try {
-        const reservation = await ReservationRequest.findByIdAndDelete(req.params.id);
+        const { reason } = req.body || {};
+
+        // Find reservation first to get details for the email
+        const reservation = await ReservationRequest.findById(req.params.id);
 
         if (!reservation) {
             return res.status(404).json({ message: "Reservation not found" });
         }
 
-        res.json({ message: "Reservation deleted successfully" });
+        // Send rejection email (fire-and-forget)
+        try {
+            const checkInDate = reservation.checkIn.toISOString().split("T")[0];
+            const checkOutDate = reservation.checkOut.toISOString().split("T")[0];
+
+            const { subject, html, text } = buildRejectionEmail({
+                guestName: reservation.guestName,
+                checkInDate,
+                checkOutDate,
+                nights: reservation.nights,
+                totalPrice: reservation.totalPrice,
+                locale: reservation.locale || "en",
+                reason: reason || "",
+            });
+
+            await getTransporter().sendMail({
+                from: `"Paraíso — Verónica's Flat" <${process.env.EMAIL_USER}>`,
+                to: reservation.guestEmail,
+                subject,
+                html,
+                text,
+                attachments: emailAttachments,
+            });
+
+            console.log(`📨 Rejection email sent to ${reservation.guestEmail}`);
+        } catch (emailError) {
+            console.error("⚠️ Failed to send rejection email:", emailError.message);
+        }
+
+        // Delete the request
+        await ReservationRequest.findByIdAndDelete(req.params.id);
+
+        res.json({ message: "Reservation rejected and deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

@@ -75,6 +75,11 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        cancellationReason: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         checkedIn: {
             type: Boolean,
             default: false,
@@ -113,6 +118,19 @@ const reservationConfirmedSchema = new mongoose.Schema(
             type: String,
             enum: ["en", "es", "cs"],
             default: "en",
+        },
+        preferredPaymentMethod: {
+            type: String,
+            enum: ["stripe", "paypal"],
+            default: "stripe",
+        },
+        paypalPaymentUrl: {
+            type: String,
+            default: "",
+        },
+        remainingPaypalPaymentUrl: {
+            type: String,
+            default: "",
         },
     },
     {

@@ -4,11 +4,13 @@
  *
  * Returns { subject, html, text }
  */
-const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens } = require('./emailLayout');
+const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens, iconCalendar, iconMoon, iconCard, iconPaypal, iconPhone, iconBell, iconBolt, iconMoney } = require('./emailLayout');
 
-function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInDate, checkOutDate, nights, totalPrice, comment }) {
+function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInDate, checkOutDate, nights, totalPrice, comment, preferredPaymentMethod }) {
 
-    const phoneRow = guestPhone ? ['Phone', `📞 ${guestPhone}`] : null;
+    const phoneRow = guestPhone ? ['Phone', `${iconPhone()} ${guestPhone}`] : null;
+    const paymentMethodRow = ['Payment Preference', preferredPaymentMethod === 'paypal' ? `${iconPaypal()} PayPal` : `${iconCard()} Stripe (Card)`];
+
     const commentRow = comment
         ? ['Comment', comment]
         : ['Comment', `<span style="color: ${tokens.lightGray}; font-style: italic;">—</span>`];
@@ -17,16 +19,17 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         ['Name', guestName],
         ['Email', `<a href="mailto:${guestEmail}" style="color: ${tokens.coral}; text-decoration: none;">${guestEmail}</a>`],
         phoneRow,
+        paymentMethodRow,
     ].filter(Boolean);
 
     const fmtIn = formatDate(checkInDate, 'en');
     const fmtOut = formatDate(checkOutDate, 'en');
 
     const bookingRows = [
-        ['Check-in', `📅 ${fmtIn}`],
-        ['Check-out', `📅 ${fmtOut}`],
-        ['Nights', `🌙 ${nights}`],
-        ['Total Price', `💰 €${totalPrice}`],
+        ['Check-in', `${iconCalendar()} ${fmtIn}`],
+        ['Check-out', `${iconCalendar()} ${fmtOut}`],
+        ['Nights', `${iconMoon()} ${nights}`],
+        ['Total Price', `${iconMoney()} €${totalPrice}`],
         ['Deposit (30%)', `€${Math.round(totalPrice * 0.3)}`],
         commentRow,
     ];
@@ -35,19 +38,19 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
     const subHead = (text) => `<h3 style="margin: 24px 0 0 0; font-family: Georgia, 'Times New Roman', serif; font-size: 14px; font-weight: 700; color: ${tokens.warmGray}; text-transform: uppercase; letter-spacing: 1px;">${text}</h3>`;
 
     const content = [
-        sectionHeading('🔔 New Booking Request'),
+        sectionHeading(`${iconBell()} New Booking Request`),
         greeting(`A new booking request has been submitted by <strong>${guestName}</strong>. Please review and confirm or decline in the Admin Dashboard.`),
         subHead('Guest Details'),
         detailsCard({ accentColor: tokens.coral, rows: guestRows }),
         subHead('Booking Details'),
         detailsCard({ accentColor: tokens.gold, rows: bookingRows }),
-        note('⚡ <strong>Action required:</strong> Review this request in the <strong>Admin Dashboard</strong> and confirm or decline it.'),
+        note(`${iconBolt()} <strong>Action required:</strong> Review this request in the <strong>Admin Dashboard</strong> and confirm or decline it.`),
     ].join('\n');
 
     const html = wrapEmail({ content, locale: 'en' });
 
     const text = [
-        `🔔 NEW BOOKING REQUEST`,
+        `NEW BOOKING REQUEST`,
         ``,
         `Guest: ${guestName}`,
         `Email: ${guestEmail}`,
@@ -63,7 +66,7 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         `→ Review this request in the Admin Dashboard.`,
     ].filter(Boolean).join("\n");
 
-    const subject = `🔔 New Booking Request — ${guestName} · ${fmtIn} → ${fmtOut}`;
+    const subject = `New Booking Request — ${guestName} · ${fmtIn} → ${fmtOut}`;
 
     return { subject, html, text };
 }

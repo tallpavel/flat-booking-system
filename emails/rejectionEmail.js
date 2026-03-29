@@ -1,36 +1,37 @@
 /**
- * Builds a localized (EN / CZ / ES) cancellation notification email.
+ * Builds a localized (EN / CZ / ES) rejection notification email
+ * for initial booking requests.
  *
  * Returns { subject, html, text }
  */
 const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens, iconCalendar, iconMoon, iconCancel } = require('./emailLayout');
 
-function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, locale = 'en', reason = '' }) {
+function buildRejectionEmail({ guestName, checkInDate, checkOutDate, nights, totalPrice, locale = 'en', reason = '' }) {
 
     const t = {
         en: {
-            heading: 'Reservation Cancelled',
-            greeting: `Hi <strong>${guestName}</strong>,<br><br>We're sorry to inform you that your reservation has been cancelled.`,
+            heading: 'Booking Request Update',
+            greeting: `Hi <strong>${guestName}</strong>,<br><br>Thank you for your interest in Verónica's Flat. We've reviewed your booking request, but unfortunately, we are unable to accommodate you at this time.`,
             checkIn: 'Check-in', checkOut: 'Check-out', nights: 'Nights', totalPrice: 'Total Price',
             reasonLabel: 'Reason',
-            helpText: 'If you have any questions or would like to rebook, please don\'t hesitate to contact us.',
-            subject: `Reservation Cancelled — ${checkInDate} → ${checkOutDate}`,
+            helpText: 'We apologize for any inconvenience. We hope to have the chance to host you in the future!',
+            subject: `Update on your Booking Request — ${checkInDate}`,
         },
         cs: {
-            heading: 'Rezervace zrušena',
-            greeting: `Ahoj <strong>${guestName}</strong>,<br><br>S lítostí Vám oznamujeme, že Vaše rezervace byla zrušena.`,
+            heading: 'Aktualizace žádosti o rezervaci',
+            greeting: `Ahoj <strong>${guestName}</strong>,<br><br>Děkujeme za Váš zájem o apartmán Verónica's Flat. Prověřili jsme Vaši žádost o rezervaci, ale bohužel Vám v tomto termínu nemůžeme vyhovět.`,
             checkIn: 'Příjezd', checkOut: 'Odjezd', nights: 'Počet nocí', totalPrice: 'Celková cena',
             reasonLabel: 'Důvod',
-            helpText: 'Pokud máte jakékoliv dotazy nebo si přejete znovu rezervovat, neváhejte nás kontaktovat.',
-            subject: `Rezervace zrušena — ${checkInDate} → ${checkOutDate}`,
+            helpText: 'Omlouváme se za případné nepříjemnosti. Doufáme, že Vás budeme moci ubytovat jindy!',
+            subject: `Aktualizace Vaší žádosti o rezervaci — ${checkInDate}`,
         },
         es: {
-            heading: 'Reserva Cancelada',
-            greeting: `Hola <strong>${guestName}</strong>,<br><br>Lamentamos informarte que tu reserva ha sido cancelada.`,
+            heading: 'Actualización de Solicitud de Reserva',
+            greeting: `Hola <strong>${guestName}</strong>,<br><br>Gracias por tu interés en el apartamento de Verónica. Hemos revisado tu solicitud de reserva, pero lamentablemente no podemos atenderte en esta ocasión.`,
             checkIn: 'Entrada', checkOut: 'Salida', nights: 'Noches', totalPrice: 'Precio total',
             reasonLabel: 'Motivo',
-            helpText: 'Si tienes alguna pregunta o deseas volver a reservar, no dudes en contactarnos.',
-            subject: `Reserva Cancelada — ${checkInDate} → ${checkOutDate}`,
+            helpText: 'Lamentamos cualquier inconveniente. ¡Esperamos tener la oportunidad de alojarte en el futuro!',
+            subject: `Actualización de su Solicitud de Reserva — ${checkInDate}`,
         },
     };
 
@@ -43,7 +44,6 @@ function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, 
         [l.checkIn, `${iconCalendar(tokens.danger)} ${fmtIn}`, `text-decoration: line-through; color: ${tokens.danger};`],
         [l.checkOut, `${iconCalendar(tokens.danger)} ${fmtOut}`, `text-decoration: line-through; color: ${tokens.danger};`],
         [l.nights, `${iconMoon(tokens.danger)} ${nights}`, `text-decoration: line-through; color: ${tokens.danger};`],
-        [l.totalPrice, `€${totalPrice}`, `text-decoration: line-through; color: ${tokens.danger};`],
     ];
 
     // Add reason row if provided
@@ -66,7 +66,6 @@ function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, 
     const textParts = [
         l.greeting.replace(/<[^>]*>/g, ''),
         `${l.checkIn}: ${fmtIn} · ${l.checkOut}: ${fmtOut} · ${l.nights}: ${nights}`,
-        `${l.totalPrice}: €${totalPrice}`,
     ];
     if (reason && reason.trim()) {
         textParts.push(`${l.reasonLabel}: ${reason.trim()}`);
@@ -78,5 +77,4 @@ function buildCancellationEmail({ guestName, checkInDate, checkOutDate, nights, 
     return { subject: l.subject, html, text };
 }
 
-module.exports = { buildCancellationEmail };
-
+module.exports = { buildRejectionEmail };
