@@ -1,4 +1,6 @@
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 
 // ── Microsoft Graph API mailer (OAuth2 / Modern Auth) ─────────────────
 // Uses client credentials flow — no user interaction needed.
@@ -73,6 +75,35 @@ async function sendMailViaGraph(mailOptions) {
         message.replyTo = [
             { emailAddress: { address: mailOptions.replyTo.trim() } },
         ];
+    }
+
+    // Add attachments (e.g., inline CID logos)
+    if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+        message.hasAttachments = true;
+        message.attachments = mailOptions.attachments.map(att => {
+            const contentBytes = fs.readFileSync(att.path).toString("base64");
+            
+            // Determine content type roughly based on extension
+            const ext = path.extname(att.filename || att.path).toLowerCase();
+            let contentType = "application/octet-stream";
+            if (ext === ".png") contentType = "image/png";
+            if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+            if (ext === ".pdf") contentType = "application/pdf";
+            
+            const attachment = {
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                name: att.filename || path.basename(att.path),
+                contentType: att.contentType || contentType,
+                contentBytes,
+                isInline: !!att.cid
+            };
+            
+            if (att.cid) {
+                attachment.contentId = att.cid;
+            }
+            
+            return attachment;
+        });
     }
 
     const url = `https://graph.microsoft.com/v1.0/users/${fromEmail}/sendMail`;
