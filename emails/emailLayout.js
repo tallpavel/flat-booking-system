@@ -13,7 +13,7 @@
 const path = require('path');
 
 /* Logo embedded via CID so it works in all email clients */
-const LOGO_CID = 'logo@veronicas-flat';
+const LOGO_CID = 'logo@veronicasflat.com';
 const LOGO_PATH = path.join(__dirname, '..', 'public', 'logo.png');
 
 /** Nodemailer attachments array — include in every sendMail call */

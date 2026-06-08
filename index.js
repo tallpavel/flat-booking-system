@@ -31,7 +31,8 @@ const ALLOWED_ORIGINS = [
     "http://localhost:5175",
     "http://13.50.243.218",   // AWS EC2 public IP
     "http://ec2-13-50-243-218.eu-north-1.compute.amazonaws.com", // AWS EC2 public DNS
-    "https://paraiso-booking.duckdns.org",
+    "https://veronicasflat.com",
+    "https://www.veronicasflat.com",
 ];
 
 app.use(cors({
