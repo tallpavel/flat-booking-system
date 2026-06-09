@@ -6,7 +6,7 @@
  */
 const { wrapEmail, sectionHeading, detailsCard, greeting, note, formatDate, tokens, iconCalendar, iconMoon, iconCard, iconPaypal, iconPhone, iconBell, iconBolt, iconMoney } = require('./emailLayout');
 
-function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInDate, checkOutDate, nights, totalPrice, comment, preferredPaymentMethod }) {
+function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInDate, checkOutDate, nights, totalPrice, comment, preferredPaymentMethod, adults, children, childrenAges }) {
 
     const phoneRow = guestPhone ? ['Phone', `${iconPhone()} ${guestPhone}`] : null;
     const paymentMethodRow = ['Payment Preference', preferredPaymentMethod === 'paypal' ? `${iconPaypal()} PayPal` : `${iconCard()} Stripe (Card)`];
@@ -25,7 +25,20 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
     const fmtIn = formatDate(checkInDate, 'en');
     const fmtOut = formatDate(checkOutDate, 'en');
 
+    // Build guest count display
+    const adultCount = adults || 1;
+    const childCount = children || 0;
+    const ages = childrenAges || [];
+    let guestsDisplay = `${adultCount} Adult${adultCount !== 1 ? 's' : ''}`;
+    if (childCount > 0) {
+        guestsDisplay += `, ${childCount} Child${childCount !== 1 ? 'ren' : ''}`;
+        if (ages.length > 0) {
+            guestsDisplay += ` (age${ages.length !== 1 ? 's' : ''}: ${ages.join(', ')})`;
+        }
+    }
+
     const bookingRows = [
+        ['Guests', `👥 ${guestsDisplay}`],
         ['Check-in', `${iconCalendar()} ${fmtIn}`],
         ['Check-out', `${iconCalendar()} ${fmtOut}`],
         ['Nights', `${iconMoon()} ${nights}`],
@@ -49,6 +62,15 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
 
     const html = wrapEmail({ content, locale: 'en' });
 
+    // Build guest count for plaintext
+    let guestsText = `${adultCount} Adult${adultCount !== 1 ? 's' : ''}`;
+    if (childCount > 0) {
+        guestsText += `, ${childCount} Child${childCount !== 1 ? 'ren' : ''}`;
+        if (ages.length > 0) {
+            guestsText += ` (ages: ${ages.join(', ')})`;
+        }
+    }
+
     const text = [
         `NEW BOOKING REQUEST`,
         ``,
@@ -56,6 +78,7 @@ function buildOwnerNewRequestEmail({ guestName, guestEmail, guestPhone, checkInD
         `Email: ${guestEmail}`,
         guestPhone ? `Phone: ${guestPhone}` : null,
         ``,
+        `Guests: ${guestsText}`,
         `Check-in: ${fmtIn}`,
         `Check-out: ${fmtOut}`,
         `Nights: ${nights}`,

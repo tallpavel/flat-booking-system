@@ -258,6 +258,9 @@ router.post("/", reservationLimiter, async (req, res) => {
                 totalPrice,
                 comment: comment || "",
                 preferredPaymentMethod: preferredPaymentMethod || "stripe",
+                adults: adultCount,
+                children: childCount,
+                childrenAges: validChildrenAges,
             });
 
             await getTransporter().sendMail({
