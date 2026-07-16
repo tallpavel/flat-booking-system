@@ -147,7 +147,7 @@ router.get("/:id", requireAdmin, async (req, res) => {
  */
 router.post("/", reservationLimiter, async (req, res) => {
     try {
-        const { guestName, guestEmail, guestPhone, checkIn, checkOut, comment, locale, turnstileToken, preferredPaymentMethod } = req.body;
+        const { guestName, guestEmail, guestPhone, checkIn, checkOut, comment, locale, turnstileToken, preferredPaymentMethod, adults, children, childrenAges } = req.body;
 
         // ── Turnstile bot protection ──────────────────────────────────
         const turnstileResult = await verifyTurnstile(turnstileToken, req.ip);
@@ -258,9 +258,9 @@ router.post("/", reservationLimiter, async (req, res) => {
                 totalPrice,
                 comment: comment || "",
                 preferredPaymentMethod: preferredPaymentMethod || "stripe",
-                adults: adultCount,
-                children: childCount,
-                childrenAges: validChildrenAges,
+                adults: adults,
+                children: children,
+                childrenAges: childrenAges,
             });
 
             await getTransporter().sendMail({
